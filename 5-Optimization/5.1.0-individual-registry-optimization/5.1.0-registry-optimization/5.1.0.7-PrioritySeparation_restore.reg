@@ -1,0 +1,16 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Priority Separation Restore (Default)
+; ========================================
+; Purpose: Restore Windows default CPU scheduler priority separation
+; Restored Value: 00000026 (38) - Windows default short variable priority
+; Technical: 38 = Short Variable Priority 2 (Windows default)
+; Use Case: Revert if experiencing system instability or compatibility issues
+; Impact: Returns to Windows default process scheduling behavior
+; Safety: Restores original Windows scheduler configuration
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:00000026    ; Restore Windows default priority separation (38)

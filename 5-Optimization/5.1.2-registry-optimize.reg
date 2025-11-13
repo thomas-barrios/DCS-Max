@@ -1,0 +1,79 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; Windows Gaming Optimization Registry Settings
+; Created: October 28, 2025
+; Description: Comprehensive registry optimizations for gaming performance
+; WARNING: Always backup your registry before applying these changes
+; ========================================
+
+; CPUCoreParking
+; Default "00000001(1) change to 00000000(0).
+; Sources: https://www.youtube.com/watch?v=sFz8HRk4WfI&t=27s. 
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583]
+"Attributes"=dword:00000000		; Unpark cores MT use all cores, reduces stutters.
+
+; CpuPriorityClass
+; Default it does not exists. Creates dword "CpuPriorityClass". Set to High "3" Decimal. OBS: 1 Idle 2 Normal 3 High 4 RealTime (n.a.) 5 Below Normal 6 Above Normal. 
+; Sources: https://youtu.be/3texmvG0jxs?t=46
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DCS.exe]
+"CpuPriorityClass"=dword:00000003	; Set process to high priority
+
+; PowerThrottling
+; Default it does not exist. Create dword "PowerThrottlingOff". Set to 00000001(1).
+; Sources: https://www.youtube.com/watch?v=Qg-q4xk3TUE
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power]
+"PowerThrottlingOff"=dword:00000001		; No CPU throttle to conserve energy; gaming boost.
+
+; GameDVR 
+; Default 00000001(1). Set to 00000000(0).
+; Sources: https://forum.dcs.world/topic/220502-fps-bump-by-disabling-gamedvr-in-windows-10-via-registry/; https://www.youtube.com/watch?v=0m8Mlvsi6MA&t=18s, https://www.reddit.com/r/RingOfElysium/comments/aiwm2r/dramatically_increased_fps_with_this_guide/
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR]
+"AppCaptureEnabled"=dword:00000000	; Disables DVR recording lag; more performance.
+
+; MaxPreRenderedFrames
+; Default it does not exist. Create dword "MaxPreRenderedFrames". Set to 00000001(1).
+; Sources: https://youtu.be/otxngWwHGLs?t=330
+[HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Direct3D]
+"MaxPreRenderedFrames"=dword:00000001	; Reduces the number of prerendered frames in windows Direct3d, better FPS and latency
+
+; SystemProfile - Changes NetworkThrottlingIndex to disable network trottling  and SystemResponsiveness and liberate a bigger share of CPU to Foreground aplicaations
+; "NetworkThrottlingIndex" Default 0000000a(10). Sets to ffffffff(4294967295).
+; "SystemResponsiveness",  Deafult 00000014(20). Sets to 0000000a(10).
+; Sources: https://youtu.be/-fCs0vv8YkU?t=197, https://www.youtube.com/watch?v=vnj48ioCRLQ&t=543s, https://www.reddit.com/r/RingOfElysium/comments/aiwm2r/dramatically_increased_fps_with_this_guide/
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
+"NetworkThrottlingIndex"=dword:ffffffff 	; Max ping stability for multiplayer;
+"SystemResponsiveness"=dword:0000000a		; Changes how much CPU% is reserved to windows, Liberates CPU power to game
+
+; SystemProfileGames - Prioritise games in front for winodws.
+; Default values: Affinity=00000000, BackgroundOnly=-, GPU Priority=00000008, Priority=00000002, Scheduling Category="Medium", SFIO Priority="Normal"
+; Sources: https://youtu.be/otxngWwHGLs?t=498
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
+"Affinity"=dword:0000000f			; limits the game to 4 first CPU cores
+"BackgroundOnly"=dword:00000000		; ensuret tasks are not limited to background processes
+"GPU Priority"=dword:0000000e		; improove how GPU alocate resources to the game
+"Priority"=dword:00000006			; gives game highest priority CPU level
+"Scheduling Category"="High"		; Ask windows to treat the game as a hig priority class during schedulling
+"SFIO Priority"="High"				; gives game better disk priority
+
+
+; PrioritySeparation - Prioritise game rather than any other background task. Greater consistency and lower latency but not as much improvement in FPS.
+; Default "38" Decimal. Set to "26" Decimal. OBS: Multiple values can be atributted other than 26.
+; Sources: https://youtu.be/otxngWwHGLs?t=251, https://www.youtube.com/watch?v=5MF8XjDdr64.
+; Hexadecimal Decimal Interval Length    PsPrioSep   ForegroundQU   BackgroundQU   TotalQU
+; 0x14        20      Long     Variable  0           12 (62.50ms)   12 (62.50ms)   24 (125.00ms)
+; 0x15        21      Long     Variable  1           24 (125.00ms)  12 (62.50ms)   36 (187.50ms)
+; 0x16        22      Long     Variable  2           36 (187.50ms)  12 (62.50ms)   48 (250.00ms)
+; 0x18        24      Long     Fixed     0           36 (187.50ms)  36 (187.50ms)  72 (375.00ms)
+; 0x19        25      Long     Fixed     1           36 (187.50ms)  36 (187.50ms)  72 (375.00ms)
+; 0x1A        26      Long     Fixed     2           36 (187.50ms)  36 (187.50ms)  72 (375.00ms)
+; 0x24        36      Short    Variable  0            6 (31.25ms)    6 (31.25ms)   12 (62.50ms)
+; 0x25        37      Short    Variable  1           12 (62.50ms)    6 (31.25ms)   18 (93.75ms)
+; 0x26        38      Short    Variable  2           18 (93.75ms)    6 (31.25ms)   24 (125.00ms)
+; 0x28        40      Short    Fixed     0           18 (93.75ms)   18 (93.75ms)   36 (281.25ms)
+; 0x29        41      Short    Fixed     1           18 (93.75ms)   18 (93.75ms)   36 (281.25ms)
+; 0x2A        42      Short    Fixed     2           18 (93.75ms)   18 (93.75ms)   36 (281.25ms)
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:0000001a	; 26      Long     Fixed     2           36 (187.50ms)  36 (187.50ms)  72 (375.00ms)
+
+

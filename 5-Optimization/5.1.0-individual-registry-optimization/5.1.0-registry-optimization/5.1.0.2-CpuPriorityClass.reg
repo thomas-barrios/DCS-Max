@@ -1,0 +1,17 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: DCS CPU Priority Class Optimization
+; ========================================
+; Purpose: Set DCS.exe process to High priority for better CPU scheduling
+; Default Value: Not set (Normal priority - 2)
+; Optimized Value: 00000003 (3) - High priority
+; Priority Levels: 1=Idle, 2=Normal, 3=High, 4=RealTime(dangerous), 5=Below Normal, 6=Above Normal
+; Sources: https://youtu.be/3texmvG0jxs?t=46
+; Impact: DCS gets prioritized CPU time over background processes
+; Safety: Completely reversible using 2.1.0.2-CpuPriorityClass_restore.reg
+; Note: Takes effect immediately for new DCS launches
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DCS.exe]
+"CpuPriorityClass"=dword:00000003    ; Set DCS process to high priority

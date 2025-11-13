@@ -1,0 +1,25 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Priority Separation Optimization (Recommended: 26)
+; ========================================
+; Purpose: Optimize Windows CPU scheduler for gaming foreground processes
+; Default Value: 00000026 (38) - Windows default short variable priority
+; Optimized Value: 0000001a (26) - Long fixed priority for gaming
+; Sources: https://youtu.be/otxngWwHGLs?t=251
+;          https://www.youtube.com/watch?v=5MF8XjDdr64
+; Impact: Better gaming consistency, lower latency, improved frame times
+; Technical: 26 = Long Fixed, Priority Sep 2, 36ms foreground/background quantum
+; Safety: Completely reversible using 2.1.0.7-PrioritySeparation_restore.reg
+; Note: Requires restart to take effect
+; Alternative: Use other numbered variants for different priority configurations
+; ========================================
+; Priority Separation Value Reference:
+; 0x14 (20) = Long Variable 0 | 0x15 (21) = Long Variable 1 | 0x16 (22) = Long Variable 2
+; 0x18 (24) = Long Fixed 0    | 0x19 (25) = Long Fixed 1    | 0x1A (26) = Long Fixed 2 ★
+; 0x24 (36) = Short Variable 0| 0x25 (37) = Short Variable 1| 0x26 (38) = Short Variable 2 (Default)
+; 0x28 (40) = Short Fixed 0   | 0x29 (41) = Short Fixed 1   | 0x2A (42) = Short Fixed 2
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:0000001a    ; 26 = Long Fixed Priority 2 for optimal gaming

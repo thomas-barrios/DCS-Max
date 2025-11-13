@@ -1,0 +1,33 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: System Profile Games Task Optimization
+; ========================================
+; Purpose: Optimize Windows multimedia scheduler for gaming applications
+; Default Values:
+;   Affinity: 00000000 - No CPU affinity restriction
+;   BackgroundOnly: Not set - May run background only
+;   GPU Priority: 00000008 (8) - Normal GPU priority  
+;   Priority: 00000002 (2) - Normal priority
+;   Scheduling Category: "Medium" - Medium scheduling priority
+;   SFIO Priority: "Normal" - Normal storage I/O priority
+; Optimized Values:
+;   Affinity: 0000000f (15) - Use first 4 CPU cores
+;   BackgroundOnly: 00000000 (0) - Not background only
+;   GPU Priority: 0000000e (14) - High GPU priority
+;   Priority: 00000006 (6) - Highest CPU priority
+;   Scheduling Category: "High" - High scheduling priority  
+;   SFIO Priority: "High" - High storage I/O priority
+; Sources: https://youtu.be/otxngWwHGLs?t=498
+; Impact: Games receive preferential CPU, GPU, and I/O scheduling from Windows
+; Safety: Completely reversible using 2.1.0.8-SystemProfileGames_restore.reg
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
+"Affinity"=dword:0000000f              ; Limit games to first 4 CPU cores for better cache locality
+"BackgroundOnly"=dword:00000000        ; Ensure games are not limited to background processing
+"GPU Priority"=dword:0000000e          ; High GPU priority for better graphics performance
+"Priority"=dword:00000006              ; Highest CPU priority level for games
+"Scheduling Category"="High"           ; High scheduling category for Windows scheduler
+"SFIO Priority"="High"                 ; High storage I/O priority for faster loading

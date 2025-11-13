@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: System Profile Restore (Default)
+; ========================================
+; Purpose: Restore Windows default network throttling and system responsiveness
+; Restored Values:
+;   NetworkThrottlingIndex: 0000000a (10) - Windows default network throttling
+;   SystemResponsiveness: 00000014 (20) - Windows default 20% background CPU
+; Use Case: Revert if experiencing network issues or need more background processing
+; Impact: Returns to Windows default CPU and network management
+; Safety: Restores original Windows multimedia system profile
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
+"NetworkThrottlingIndex"=dword:0000000a    ; Restore Windows default network throttling
+"SystemResponsiveness"=dword:00000014      ; Restore Windows default background CPU allocation

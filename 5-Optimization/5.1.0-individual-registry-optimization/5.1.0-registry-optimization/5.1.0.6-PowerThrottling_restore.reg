@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Power Throttling Restore (Default)
+; ========================================
+; Purpose: Re-enable Windows CPU power throttling for power savings
+; Restored Value: Registry key deleted (Windows default power management)
+; Use Case: Restore for laptop battery life or thermal management
+; Impact: CPU may throttle for power savings, potentially reducing performance
+; Safety: Restores original Windows power management behavior
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power]
+"PowerThrottlingOff"=-    ; Remove setting, restore Windows default power throttling

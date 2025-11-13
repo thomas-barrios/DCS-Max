@@ -1,0 +1,17 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Power Throttling Disable Optimization
+; ========================================
+; Purpose: Disable CPU power throttling for maximum gaming performance
+; Default Value: Not set (Power throttling enabled by Windows default)
+; Optimized Value: 00000001 (1) - Power throttling disabled
+; Sources: https://www.youtube.com/watch?v=Qg-q4xk3TUE
+; Impact: Prevents CPU throttling for power savings, ensures max clocks during gaming
+; Trade-off: Higher power consumption for consistent performance
+; Safety: Completely reversible using 2.1.0.6-PowerThrottling_restore.reg
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power]
+"PowerThrottlingOff"=dword:00000001    ; Disable CPU power throttling for gaming performance

@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: GameDVR Disable Optimization
+; ========================================
+; Purpose: Disable Windows Game DVR recording to eliminate frame drops
+; Default Value: 00000001 (1) - GameDVR enabled
+; Optimized Value: 00000000 (0) - GameDVR disabled
+; Sources: https://forum.dcs.world/topic/220502-fps-bump-by-disabling-gamedvr-in-windows-10-via-registry/
+;          https://www.youtube.com/watch?v=0m8Mlvsi6MA&t=18s
+;          https://www.reddit.com/r/RingOfElysium/comments/aiwm2r/dramatically_increased_fps_with_this_guide/
+; Impact: Eliminates DVR recording lag, improves FPS and reduces input latency
+; Safety: Completely reversible using 2.1.0.3-GameDVR_restore.reg
+; Note: Takes effect immediately, no restart required
+; ========================================
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR]
+"AppCaptureEnabled"=dword:00000000    ; Disable DVR recording for better gaming performance

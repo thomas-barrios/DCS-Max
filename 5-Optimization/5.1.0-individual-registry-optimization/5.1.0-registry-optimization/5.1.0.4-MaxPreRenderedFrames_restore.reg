@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Direct3D Max Pre-Rendered Frames Restore (Default)
+; ========================================
+; Purpose: Remove custom pre-rendered frames limit, return to Windows default
+; Restored Value: Registry key deleted (Windows default behavior)
+; Use Case: Revert if experiencing performance issues with specific hardware
+; Impact: Returns to Windows default frame pre-rendering behavior
+; Safety: Restores original Direct3D rendering behavior
+; Note: Takes effect for new applications, restart recommended
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Direct3D]
+"MaxPreRenderedFrames"=-    ; Remove custom limit, return to Windows default

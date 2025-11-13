@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: GameDVR Restore (Default)
+; ========================================
+; Purpose: Re-enable Windows Game DVR recording functionality
+; Restored Value: 00000001 (1) - GameDVR enabled (Windows default)
+; Use Case: Restore if you need Windows game recording features
+; Impact: Re-enables DVR but may reduce gaming performance
+; Safety: Restores original Windows Game Bar functionality
+; Note: Takes effect immediately, no restart required
+; ========================================
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR]
+"AppCaptureEnabled"=dword:00000001    ; Re-enable Windows Game DVR recording

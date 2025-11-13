@@ -1,0 +1,17 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: Direct3D Max Pre-Rendered Frames Optimization
+; ========================================
+; Purpose: Reduce input lag by limiting pre-rendered frames in Direct3D
+; Default Value: Not set (Windows default varies, typically 3-4 frames)
+; Optimized Value: 00000001 (1) - Single frame pre-rendering
+; Sources: https://youtu.be/otxngWwHGLs?t=330
+; Impact: Reduces input latency and improves responsiveness, better FPS stability
+; Trade-off: Slightly higher CPU usage for significantly lower input lag
+; Safety: Completely reversible using 2.1.0.4-MaxPreRenderedFrames_restore.reg
+; Note: Takes effect for new applications, restart recommended
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Direct3D]
+"MaxPreRenderedFrames"=dword:00000001    ; Reduce pre-rendered frames for lower input lag

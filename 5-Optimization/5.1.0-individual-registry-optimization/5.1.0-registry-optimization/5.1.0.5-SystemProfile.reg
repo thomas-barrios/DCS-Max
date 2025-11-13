@@ -1,0 +1,23 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: System Profile Network & Responsiveness Optimization
+; ========================================
+; Purpose: Disable network throttling and increase foreground app CPU allocation
+; Default Values:
+;   NetworkThrottlingIndex: 0000000a (10) - Network throttling enabled
+;   SystemResponsiveness: 00000014 (20) - 20% CPU reserved for background
+; Optimized Values:
+;   NetworkThrottlingIndex: ffffffff (4294967295) - Network throttling disabled
+;   SystemResponsiveness: 0000000a (10) - Only 10% CPU for background tasks
+; Sources: https://youtu.be/-fCs0vv8YkU?t=197
+;          https://www.youtube.com/watch?v=vnj48ioCRLQ&t=543s
+;          https://www.reddit.com/r/RingOfElysium/comments/aiwm2r/dramatically_increased_fps_with_this_guide/
+; Impact: Max ping stability for multiplayer, more CPU power for gaming
+; Safety: Completely reversible using 2.1.0.5-SystemProfile_restore.reg
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
+"NetworkThrottlingIndex"=dword:ffffffff    ; Disable network throttling for multiplayer stability
+"SystemResponsiveness"=dword:0000000a      ; Reserve only 10% CPU for background tasks

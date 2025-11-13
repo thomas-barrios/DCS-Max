@@ -1,0 +1,118 @@
+# .gitignore for DCS-Max
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# PowerShell
+*.ps1.bak
+*_profile.ps1
+
+# AutoHotkey
+*.ahk.bak
+*.exe
+
+# Log files
+*.log
+*.log.*
+logs/
+Logs/
+
+# Backup directories
+backups/
+Backups/
+backup/
+Backup/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+
+# User-specific configuration
+config.local.*
+settings.local.*
+*-local.*
+
+# Personal data that shouldn't be shared
+*-personal.*
+*-private.*
+
+# Sensitive information
+passwords.txt
+credentials.*
+*.key
+*.pem
+
+# Test files and outputs
+test-output/
+benchmark-results/
+test-*.txt
+debug-*.txt
+
+# Compilation and build artifacts
+bin/
+obj/
+build/
+dist/
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+*.sublime-*
+*~
+
+# CapFrameX output (contains personal paths)
+**/CapFrameX/Captures/*
+*.cxr
+*.csv.bak
+
+# System-specific paths (these should be configured per system)
+# Uncomment if you want to ignore user-specific paths
+# **/Thomas/**
+# **/Users/**
+# **D:\**
+# **C:\Program Files**
+
+# Checkpoint and state files
+checkpoint.txt
+*.checkpoint
+state.json
+
+# Registry backups (these can be large and system-specific)
+# Uncomment if you want to ignore registry backups
+# *.reg.bak
+# registry-backup-*.reg
+
+# Windows feature backup files
+*.dism.bak
+*.feature.bak
+
+# Personal DCS tracks and missions
+*.trk
+*.miz.bak
+
+# Performance monitoring outputs
+performance-*.json
+benchmark-*.csv
+report-*.html
+
+# Archive and compressed files (usually shouldn't be in git)
+*.zip
+*.rar
+*.7z
+*.tar.gz
+
+# Development and testing artifacts
+scratch/
+experiments/
+old-versions/
+archive/

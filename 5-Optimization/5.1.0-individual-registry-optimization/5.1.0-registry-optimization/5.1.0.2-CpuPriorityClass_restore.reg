@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: DCS CPU Priority Class Restore (Default)
+; ========================================
+; Purpose: Remove custom DCS priority setting, return to Windows default
+; Restored Value: Registry key deleted (Normal priority - Windows default)
+; Use Case: Revert if DCS priority conflicts with other applications
+; Impact: DCS returns to normal Windows process priority
+; Safety: Restores original Windows process handling
+; Note: Takes effect immediately for new DCS launches
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DCS.exe]
+"CpuPriorityClass"=-    ; Remove custom priority, return to Windows default

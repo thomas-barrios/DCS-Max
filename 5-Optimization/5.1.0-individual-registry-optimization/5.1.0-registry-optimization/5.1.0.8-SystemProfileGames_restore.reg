@@ -1,0 +1,26 @@
+Windows Registry Editor Version 5.00
+
+; ========================================
+; DCS-Max: System Profile Games Task Restore (Default)
+; ========================================
+; Purpose: Restore Windows default multimedia scheduler settings for games
+; Restored Values:
+;   Affinity: 00000000 - No CPU affinity restriction (Windows default)
+;   BackgroundOnly: Registry key deleted - Windows default behavior
+;   GPU Priority: 00000008 (8) - Normal GPU priority (Windows default)
+;   Priority: 00000002 (2) - Normal priority (Windows default)
+;   Scheduling Category: "Medium" - Medium scheduling priority (Windows default)
+;   SFIO Priority: "Normal" - Normal storage I/O priority (Windows default)
+; Use Case: Revert if experiencing compatibility issues with non-gaming applications
+; Impact: Returns to Windows default game task scheduling behavior
+; Safety: Restores original Windows multimedia task configuration
+; Note: Requires restart to take effect
+; ========================================
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
+"Affinity"=dword:00000000              ; Remove CPU affinity restriction
+"BackgroundOnly"=-                     ; Remove setting, return to Windows default
+"GPU Priority"=dword:00000008          ; Restore Windows default GPU priority
+"Priority"=dword:00000002              ; Restore Windows default CPU priority
+"Scheduling Category"="Medium"         ; Restore Windows default scheduling category
+"SFIO Priority"="Normal"               ; Restore Windows default storage I/O priority
