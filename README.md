@@ -1,5 +1,5 @@
 
-# 🚁 DCS-Max
+# 🚀 DCS-Max
 
 **The Ultimate DCS World Performance Optimization Suite**
 
@@ -158,12 +158,12 @@ Get-Content .\4-Performance-Testing\4.1.2-dcs-testing-automation.log -Wait
 # - Benchmark completion status and results summary
 # - Compatible with external log analysis tools
 ```
-```
 
 
 ## 📁 **Project Structure**
 
-```
+
+```bash
 DCS-Max/
 ├── 1-Backup-restore/
 │   ├── 1.1.1-registry-backup.ps1
@@ -318,4 +318,4 @@ Developed for the DCS community with contributions from performance optimization
 ---
 
 
-**🚁 Fly safer, fly faster with DCS-Max!**
+**✈️ Fly safer, fly faster with DCS-Max!**
