@@ -441,5 +441,5 @@ Get-Counter "\Processor(_Total)\% Processor Time","\Memory\Available MBytes" -Sa
 
 
 ---
-*For installation, see `1-README.md`*
-*For performance, see `3-performance-guide.md`*
+*For installation, see `README.md`*
+*For performance, see `performance-guide.md`*

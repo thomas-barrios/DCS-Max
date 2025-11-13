@@ -590,5 +590,5 @@ options["display"]["show_memory"] = true
 4. Document any performance changes
 
 ---
-*For installation instructions, see the main `1-README.md`*
-*For troubleshooting help, see `4-troubleshooting.md`*
+*For installation instructions, see the main `README.md`*
+*For troubleshooting help, see `troubleshooting.md`*

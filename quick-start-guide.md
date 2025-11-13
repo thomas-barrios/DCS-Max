@@ -155,14 +155,14 @@ If you experience any issues, restore your original settings:
 
 ## 📚 **Learn More**
 
-- **[Installation Guide](1-README.md#quick-installation--setup)** – Full-thrust setup for all features
-- **[Performance Guide](3-performance-guide.md)** – Engineering every FPS gain
-- **[Troubleshooting](4-troubleshooting.md)** – Regain control, restore thrust
+- **[Installation Guide](README.md#quick-installation--setup)** – Full-thrust setup for all features
+- **[Performance Guide](performance-guide.md)** – Engineering every FPS gain
+- **[Troubleshooting](troubleshooting.md)** – Regain control, restore thrust
 
 
 ## 🆘 **Need Help?**
 
-- Check the [Troubleshooting Guide](4-troubleshooting.md)
+- Check the [Troubleshooting Guide](troubleshooting.md)
 - Review log files created by each script
 - All scripts include detailed error messages to guide you
 

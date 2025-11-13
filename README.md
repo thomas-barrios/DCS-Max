@@ -165,7 +165,7 @@ Get-Content .\4-Performance-Testing\4.1.2-dcs-testing-automation.log -Wait
 
 ```bash
 DCS-Max/
-├── 1-Backup-restore/
+├── 1-Backup-Restore/
 │   ├── 1.1.1-registry-backup.ps1
 │   ├── 1.1.3-registry-restore.reg
 │   ├── 1.2.1-tasks-backup.ps1
@@ -175,7 +175,6 @@ DCS-Max/
 │   ├── 1.4.1-dcs-backup.ps1
 │   ├── 1.4.2-dcs-restore.ps1
 │   └── 1.4.3-schedule-dcs-backup-at-logon.ps1
-│
 ├── 2-Utilities/
 │   ├── 2.1.0-Windows-unattended.md
 │   ├── 2.2.0-Winutil.md
@@ -183,33 +182,34 @@ DCS-Max/
 │   ├── 2.4.0-Nvidia-Profile-Inspector.md
 │   ├── 2.5.0-Google-Drive.md
 │   └── 2.6.0-CapFrameX.md
-│
 ├── 3-Templates/
 │   ├── 3.1.0-unattended.xml
 │   ├── 3.2.0-winutil-config.json
 │   ├── 3.3.0-ooshutup10-config.cfg
 │   ├── 3.4.0-nvidia-base-profile.nip
 │   ├── 3.5.0-dcs-google-drive-weekly-backup.xml
-│   └── 3.9.0-DCS-HighEnd-PerformanceStability-(work-in-progress)-v09.ini
-│
+│   └── 3.6.0-dcs-reference-configuration.ini
 ├── 4-Performance-Testing/
 │   ├── 4.1.1-dcs-testing-configuration.ini
 │   ├── 4.1.2-dcs-testing-automation.ahk
 │   ├── 4.1.2-dcs-testing-automation.log
+│   ├── 4.1.3-dcs-benchmark-automation.log
 │   └── benchmark-missions/
-│
 ├── 5-Optimization/
-│   ├── _README.md
 │   ├── 5.1.0-individual-registry-optimization/
 │   ├── 5.1.2-registry-optimize.reg
 │   ├── 5.2.2-tasks-optimize.ps1
 │   ├── 5.3.2-services-optimize.ps1
-│   └── 5.4.1-clean-caches.bat
-│
-└── docs/
-    ├── CONFIGURATION.md
-    ├── performance-guide.md
-    └── troubleshooting.md
+│   ├── 5.4.1-clean-caches.bat
+│   └── _README.md
+├── Backups/ (empty)
+├── CHANGELOG.md
+├── LICENSE
+├── master-config.ini
+├── performance-guide.md
+├── troubleshooting.md
+├── quick-start-guide.md
+└── README.md
 ```
 
 ## 🛠️ **Core Features**
@@ -279,8 +279,8 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
 ## 🔗 **Documentation Links**
 
 
-- 🚀 **[Performance Guide](3-performance-guide.md)** - Understanding the optimizations
-- 🆘 **[Troubleshooting](4-troubleshooting.md)** - Detailed problem resolution
+- 🚀 **[Performance Guide](performance-guide.md)** - Understanding the optimizations
+- 🆘 **[Troubleshooting](troubleshooting.md)** - Detailed problem resolution
 
 ## 📊 **Performance Impact**
 
