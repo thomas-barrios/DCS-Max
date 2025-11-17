@@ -1,11 +1,11 @@
-<#
-.SYNOPSIS
-    PC Restore Script
-    Restores files from a specified backup folder (or latest if not specified) to original locations
-.DESCRIPTION
-    Accepts -BackupFolder param (optional, defaults to latest), restores files using env vars for portability
-    Requires admin for some paths (e.g., ProgramData), logs to file/console
-#>
+# PC Restore Script
+# Restores files from a specified backup folder (or latest if not specified) to original locations
+# Accepts -BackupFolder param (optional, defaults to latest), restores files using env vars for portability
+# Requires admin for some paths (e.g., ProgramData), logs to file/console
+
+# Assures administrator privileges
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
+
 
 param (
     [Parameter(Mandatory=$false)]

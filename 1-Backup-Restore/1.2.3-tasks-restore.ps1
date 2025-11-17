@@ -7,6 +7,10 @@
 # .\2.2.3-tasks-restore.ps1                            # Restores from latest backup
 # .\2.2.3-tasks-restore.ps1 -XmlFile "filename.xml"    # Restores from specific XML file
 
+# Assures administrator privileges
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
+
+
 param([string]$XmlFile)
 
 if ($XmlFile) {

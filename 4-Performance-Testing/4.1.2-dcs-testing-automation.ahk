@@ -11,22 +11,30 @@
 ; - Slower systems or loaded scenarios may need longer waits
 ; - VR setups typically need longer initialization times
 
-DryRun              := false    ; set to true to skip actual benchmark runs for testing
-Wait25ms 		    := 25       ; 0.025s general very small delay between commands, file edits, and so on
-Wait50ms 		    := 500      ; 0.5s general small delay between commands, file edits, and so on
-Wait1s 			    := 1000     ; 1s wait for CapFrameX to open
-WaitPimax 		    := 15000    ; 15s wait for Pimax Play to open
+DryRun              := true    ; set to true to skip actual benchmark runs for testing
+
+; VR Configuration
+EnableVR            := false    ; set to true to enable VR functionality, false to skip VR code
+VRhardware          := "Pimax"  ; VR hardware type options:
+                                ; "Pimax" - Pimax family (Crystal, Crystal Light, 8KX/5K) - High-FOV for dogfights, needs powerful PC
+                                ; FUTURE NOT AVAILABLE YET: 
+                                ; "MetaQuest" - Meta/Oculus Quest family (Quest 3, Quest 2/Pro) - Wireless via VD/Air Link, balanced res/FOV
+                                ; "HPReverbG2" - HP Reverb G2 - High-res workhorse, excellent text clarity, narrow FOV
+                                ; "ValveIndex" - Valve Index - Solid audio/tracking, reliable
+                                ; "Other" - Other VR headsets (Rift S, Vive Pro/2, Pico 4, Varjo Aero/XR)
+
+; WAITING TIMES (in milliseconds) MESURE YOUR TIMES AS THEY MAY VARY FROM PC TO PC
+WaitVR 		        := 15000    ; 15s wait for VR client to open
 WaitMissionReady 	:= 55000    ; 55s wait for DCS to open and mission to load
 WaitBeforeRecord    := 1000     ; 1s wait after mission start before recording
 WaitRecordLength    := 120000   ; 120s recording duration for benchmark
 WaitCapFrameXWrite  := 5000     ; 5s wait for CapFrameX to write JSON file after recording
 WaitMissionRestart  := 12000    ; 12s wait after record completion before next test
 WaitDCSRestart      := 30000    ; 30s wait for DCS to fully restart
-Wait50ms_keys       := 50       ; 50ms delay between key press sequences
 
 ; Test configuration
-NumberOfRuns        := 3        ; Number of benchmark runs per setting (adjust as needed)
-MaxRetries          := 3        ; Maximum retries for failed operations
+NumberOfRuns        := 1        ; Number of benchmark runs per test setting (adjust as needed). Will test X times each setting/value combination
+MaxRetries          := 1        ; Maximum retries for failed operations
 
 ; Time tracking variables
 TotalTestCount := 0         ; Total number of tests to run
@@ -36,13 +44,13 @@ BaseTimePerTest := 0        ; Average time per test in seconds
 
 ; File paths
 capframexFolder     := A_MyDocuments "\CapFrameX\Captures"
-iniFile             := A_ScriptDir "\4.1.1-dcs-testing-configuration.ini"
-optionsLua          := "D:\Users\Thomas\Saved Games\DCS\Config\options.lua"
-logFile             := A_ScriptDir "\4.1.3-dcs-benchmark-automation.log"
+optionsLua          := EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua"
+iniFile             := A_ScriptDir "\4.1.1-dcs-testing-configuration.ini"   ; Defines witch settings/values to test
+logFile             := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
 checkpointFile      := A_ScriptDir "\4.1.4-checkpoint.txt"
 
 ; Application paths
-dcsExe              := "D:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"  ; Update path as needed
+dcsExe              := "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"  ; Update path as needed
 capframex           := "C:\Program Files (x86)\CapFrameX\CapFrameX.exe"
 pimax               := "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
 notepadpp           := "C:\Program Files\Notepad++\notepad++.exe"  ; Update path if different
@@ -53,15 +61,15 @@ mission             := A_ScriptDir "\benchmark-missions\multiplayer-JustDogfight
 ; ==============================
 
 ; Validate critical files exist
-if (!FileExist(optionsLua)) {
-    MsgBox("ERROR: DCS options.lua not found at:`n" optionsLua "`n`nCheck the DCS location specified in the scritpR.", "DCS Benchmark Error", "0x10")
-    ExitApp(1)
-}
+; if (!FileExist(optionsLua)) {
+;     MsgBox("ERROR: DCS options.lua not found at:`n" optionsLua "`n`nCheck the DCS location specified in the scritpR.", "DCS Benchmark Error", "0x10")
+;     ExitApp(1)
+; }
 
-if (!FileExist(mission)) {
-    MsgBox("ERROR: Benchmark mission not found at:`n" mission, "DCS Benchmark Error", "0x10")
-    ExitApp(1)
-}
+; if (!FileExist(mission)) {
+;     MsgBox("ERROR: Benchmark mission not found at:`n" mission, "DCS Benchmark Error", "0x10")
+;     ExitApp(1)
+; }
 
 originalLua := FileRead(optionsLua)
 
@@ -465,7 +473,7 @@ SendKeyWithDelay(key) {
 }
 
 OpenCloseGraphicsSettings() {
-    global Wait50ms_keys, MaxRetries
+    global MaxRetries
     
     if DryRun {
         LogWithTimestamp("DRY RUN: Simulating graphics settings refresh...")
@@ -541,7 +549,7 @@ VerifySettingChanged(settingName, expectedValue) {
 }
 
 StartApplications() {
-    global capframex, pimax, Wait1s, WaitPimax, logFile, notepadpp
+    global capframex, pimax, WaitVR, logFile, notepadpp, EnableVR, VRhardware
     
     LogWithTimestamp("=== STARTING APPLICATIONS ===")
     
@@ -554,27 +562,38 @@ StartApplications() {
     
     LogWithTimestamp("Starting CapFrameX...")
     Run capframex
-    Sleep Wait1s
+    Sleep 1000
     LogWithTimestamp("CapFrameX started successfully")
     
-    ; Start Pimax Client
-    if !FileExist(pimax) {
-        LogWithTimestamp("ERROR: Pimax Client not found: " pimax)
-        MsgBox "Pimax Client not found: " pimax, "Error", 16
-        ExitApp
-    }
-    
-    ; Check if Pimax is already running
-    pimaxAlreadyRunning := WinExist("ahk_exe PimaxClient.exe")
-    if (pimaxAlreadyRunning) {
-        LogWithTimestamp("Pimax Client is already running, skipping launch, reduced wait time (2s)...")
-        Sleep 2000
-        LogWithTimestamp("Pimax Client startup wait completed")
+    ; VR Hardware Setup (only if VR is enabled)
+    if (EnableVR) {
+        LogWithTimestamp("VR enabled - setting up " VRhardware " hardware...")
+        
+        ; Start Pimax Client (for Pimax VR)
+        if (VRhardware = "Pimax") {
+            if !FileExist(pimax) {
+                LogWithTimestamp("ERROR: Pimax Client not found: " pimax)
+                MsgBox "Pimax Client not found: " pimax, "Error", 16
+                ExitApp
+            }
+            
+            ; Check if Pimax is already running
+            pimaxAlreadyRunning := WinExist("ahk_exe PimaxClient.exe")
+            if (pimaxAlreadyRunning) {
+                LogWithTimestamp("Pimax Client is already running, skipping launch, reduced wait time (2s)...")
+                Sleep 2000
+                LogWithTimestamp("Pimax Client startup wait completed")
+            } else {
+                LogWithTimestamp("Starting Pimax Client...")
+                Run pimax
+                Sleep WaitVR
+                LogWithTimestamp("Pimax Client started successfully")
+            }
+        } else {
+            LogWithTimestamp("VR hardware " VRhardware " selected - no additional client needed")
+        }
     } else {
-        LogWithTimestamp("Starting Pimax Client...")
-        Run pimax
-        Sleep WaitPimax
-        LogWithTimestamp("Pimax Client started successfully")
+        LogWithTimestamp("VR disabled - skipping VR hardware setup")
     }
     
     ; Start Notepad++
@@ -586,7 +605,7 @@ StartApplications() {
     
     LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
     Run notepadpp ' -monitor "' logFile '"'
-    Sleep Wait1s
+    Sleep 1000
     LogWithTimestamp("Notepad++ started successfully")
 }
 
@@ -866,7 +885,7 @@ ResetToOriginalValues() {
     try {
         FileDelete optionsLua
         FileAppend originalLua, optionsLua
-        Sleep Wait50ms  ; Small delay to ensure file is written
+        Sleep 500  ; Small delay to ensure file is written
         LogWithTimestamp("DEBUG: Original file restored successfully")
         
         ; Log original values that were restored
@@ -993,7 +1012,7 @@ SetConfigValue(setting, value) {
 }
 
 RunBenchmark(setting, value, restartType) {
-    global WaitBeforeRecord, WaitRecordLength, WaitCapFrameXWrite, WaitMissionRestart, Wait50ms_keys, MaxRetries, DryRun
+    global WaitBeforeRecord, WaitRecordLength, WaitCapFrameXWrite, WaitMissionRestart, MaxRetries, DryRun
        
     ; In DryRun mode, skip DCS interaction
     if (DryRun) {
@@ -1065,9 +1084,9 @@ RunBenchmark(setting, value, restartType) {
         
         LogWithTimestamp("Mission restarted")
         Send "{LShift down}"
-        Sleep Wait50ms_keys
+        Sleep 50
         Send "r"
-        Sleep Wait50ms_keys
+        Sleep 50
         Send "{LShift up}"
         
         LogWithTimestamp("Waiting " (WaitMissionRestart/1000) "s for DCS to reload mission")

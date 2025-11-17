@@ -2,6 +2,9 @@
 # Creates backup of specific registry values before optimization
 # Optimized version with no code duplication
 
+# Assures administrator privileges
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
+
 # Get timestamp for backup filename
 $timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $backupFile = "$timestamp-registry-backup.reg"

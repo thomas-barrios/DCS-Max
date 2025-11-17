@@ -1,10 +1,10 @@
-#requires -RunAsAdministrator
-
 # Schedule DCS Backup Script for DCS-Max
 # Purpose: Create automated Windows Task Scheduler entries for regular DCS backups
 # Author: DCS-Max Suite
 # Date: November 12, 2025
-# Usage: Run as Administrator to set up automated backups
+# Usage: Run to set up automated backups
+
+Write-Host "Starting DCS Backup Scheduling Script..." -ForegroundColor Green
 
 # Set execution policy to allow script to run
 try {
@@ -50,8 +50,14 @@ try {
         $response = Read-Host "Do you want to update it? (Y/N)"
         
         if ($response -eq 'Y' -or $response -eq 'y') {
-            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-            Write-Host "[REMOVED] Removed existing task" -ForegroundColor Yellow
+            try {
+                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
+                Write-Host "[REMOVED] Removed existing task" -ForegroundColor Yellow
+            } catch {
+                Write-Error "[ERROR] Failed to remove existing task: $_"
+                Write-Host "Please manually delete the task in Task Scheduler or run as administrator." -ForegroundColor Red
+                exit 1
+            }
         } else {
             Write-Host "[CANCELLED] Operation cancelled by user" -ForegroundColor Red
             exit 0
@@ -59,7 +65,7 @@ try {
     }
     
     # Create the action (what the task will do)
-    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$backupScriptPath`""
+    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$backupScriptPath`" -Quiet"
     
     # Create the trigger (when the task will run)
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
@@ -70,8 +76,8 @@ try {
     # Create task settings
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false
     
-    # Create the principal (run as current user with highest privileges)
-    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
+    # Create the principal (run as current user)
+    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
     
     # Register the task
     $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description $taskDescription

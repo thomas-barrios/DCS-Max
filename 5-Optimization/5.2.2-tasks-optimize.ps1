@@ -6,6 +6,10 @@
 # Usage: Run in PowerShell; restore via backup XML using 2.2.3-tasks-restore.ps1.
 # Note: These disables are safe/optional for gaming setups without Edge/Google/.NET/UWP dependencies; tested for stability in HARPIA team setups.
 
+# Assures administrator privileges
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
+
+
 # List of all tasks to disable (full identifiers from SafeToDisable and OptionalToDisable)
 $taskIdentifiers = @(
     "\MicrosoftEdgeUpdateTaskMachineCore{39097A80-6523-43D6-BACB-628BA6DD09F0}",

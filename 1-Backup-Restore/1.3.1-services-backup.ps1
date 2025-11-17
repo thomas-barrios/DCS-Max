@@ -1,10 +1,8 @@
-﻿#requires -RunAsAdministrator
-
-# Windows Services Backup Script for DCS-Max
+﻿# Windows Services Backup Script for DCS-Max
 # Purpose: Create comprehensive backup of all Windows services states before optimization
 # Author: DCS-Max Suite
 # Date: November 12, 2025
-# Usage: Run as Administrator before applying service optimizations
+# Usage: Run before applying service optimizations
 # Optional: -ServicesToBackup @("service1", "service2") to backup only specific services
 
 param([string[]]$ServicesToBackup)
@@ -41,7 +39,7 @@ Write-Host ""
 Write-Host "[SCAN] Scanning all Windows services..." -ForegroundColor Yellow
 
 try {
-    $allServicesQuery = Get-WmiObject -Class Win32_Service | Select-Object Name, DisplayName, StartMode, State, PathName
+    $allServicesQuery = Get-Service -ErrorAction SilentlyContinue | Select-Object Name, DisplayName, StartType, Status
     if ($ServicesToBackup) {
         $allServices = $allServicesQuery | Where-Object { $_.Name -in $ServicesToBackup }
         Write-Host "[FILTER] Backing up only specified services: $($ServicesToBackup -join ', ')" -ForegroundColor Yellow
@@ -81,3 +79,4 @@ Write-Host "   2. Test DCS performance with optimizations" -ForegroundColor Whit
 Write-Host "   3. If needed, run 1-Backup-restore\1.3.2-services-restore.ps1 to restore" -ForegroundColor White
 Write-Host ""
 Write-Host "[OK] Windows Services backup completed successfully!" -ForegroundColor Green
+Pause

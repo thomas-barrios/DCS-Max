@@ -1,11 +1,9 @@
-<#
-.SYNOPSIS
-    PC Backup Script
-    Runs at logon, creates timestamped backup in %USERPROFILE%\Documents\DCS-Max\Backups
-.DESCRIPTION
-    Backs up critical user files, generates a BAT to trigger restore
-    Uses env vars for portability, logs to file/console, no admin required
-#>
+# PC Backup Script
+# Runs at logon, creates timestamped backup in %USERPROFILE%\Documents\DCS-Max\Backups
+# Backs up critical user files, generates a BAT to trigger restore
+# Uses env vars for portability, logs to file/console, no admin required
+
+param([switch]$Quiet = $false)
 
 # === CONFIGURATION ===
 $UserName = $env:USERNAME
@@ -16,6 +14,19 @@ $Timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $BackupFolder = "$BackupsDir\$Timestamp-dcs-settings-backup"
 $LogFile = "$BackupsDir\_BackupLog.txt"
 $SavedGamesPath = "$env:USERPROFILE\Saved Games"
+
+# === UTILITY FUNCTIONS ===
+function Write-Log {
+    param([string]$Message, [string]$Level = "INFO")
+    $LogMessage = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level]: $Message"
+    Add-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
+    if (!$Quiet) {
+        $color = switch ($Level) { "ERROR" { "Red" } "WARN" { "Yellow" } default { "Green" } }
+        Write-Host $LogMessage -ForegroundColor $color
+    }
+}
+
+Write-Log "Quiet parameter: $Quiet"
 
 # Files to backup (grouped for readability)
 $FilesToBackup = @(
@@ -52,9 +63,11 @@ $FilesToBackup = @(
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
     $LogMessage = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level]: $Message"
-    $color = switch ($Level) { "ERROR" { "Red" } "WARN" { "Yellow" } default { "Green" } }
-    Write-Host $LogMessage -ForegroundColor $color
     Add-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
+    if (!$Quiet) {
+        $color = switch ($Level) { "ERROR" { "Red" } "WARN" { "Yellow" } default { "Green" } }
+        Write-Host $LogMessage -ForegroundColor $color
+    }
 }
 
 # === MAIN EXECUTION ===
@@ -82,12 +95,14 @@ try {
     Write-Log "=== BACKUP COMPLETE ==="
     Write-Log "Files backed up: $BackupCount / $($FilesToBackup.Count)"
     Write-Log "Backup location: $BackupFolder"
-    Write-Host "`n=== BACKUP SUCCESSFUL ===" -ForegroundColor Green
-    Write-Host "Backup saved to: $BackupFolder" -ForegroundColor Cyan
-    Write-Host "Total files backed up: $BackupCount / $($FilesToBackup.Count)" -ForegroundColor Cyan
-    Write-Host "For restoration use: .\1.4.2-dcs-restore.ps1 -BackupFolder '$BackupFolder'" -ForegroundColor Cyan
-    Write-Host "`nPress any key to continue..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    if (!$Quiet) {
+        Write-Host "`n=== BACKUP SUCCESSFUL ===" -ForegroundColor Green
+        Write-Host "Backup saved to: $BackupFolder" -ForegroundColor Cyan
+        Write-Host "Total files backed up: $BackupCount / $($FilesToBackup.Count)" -ForegroundColor Cyan
+        Write-Host "For restoration use: .\1.4.2-dcs-restore.ps1 -BackupFolder '$BackupFolder'" -ForegroundColor Cyan
+        Write-Host "`nPress any key to continue..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
 } catch {
     Write-Log "CRITICAL ERROR: $($_.Exception.Message)" "ERROR"
     exit 1

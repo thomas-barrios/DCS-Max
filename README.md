@@ -36,7 +36,8 @@ Advanced DCS players and system administrators who want:
 ## ⚡ **Quick Installation & Setup**
 
 ### Step 1: Download and Extract
-1. Download the latest release from the repository [https://github.com/thomas-barrios/DCS-Max/releases](https://github.com/thomas-barrios/DCS-Max/releases)
+1. Download the latest release from the repository 
+[https://github.com/thomas-barrios/DCS-Max/releases](https://github.com/thomas-barrios/DCS-Max/releases)
 2. Extract to your preferred location (e.g., `C:\DCS-Max\`)
 3. Ensure the folder structure is intact
 
@@ -94,10 +95,10 @@ This will create individual backups, for affected files and settings only. Make 
 .\1.Backup-restore\1.1.1-registry-backup.ps1
 
 # Backup affected windows tasks
-1.2.1-tasks-backup.ps1
+.\1.Backup-restore\1.2.1-tasks-backup.ps1
 
 # Backup affected windows services
-1.3.1-services-backup.ps1
+.\1.Backup-restore\1.3.1-services-backup.ps1
 
 # Backup affected DCS and applications config files
 .\1.Backup-restore\1.4.1-dcs-backup.ps1
@@ -169,9 +170,9 @@ In this file, you can set wich configurations you want to test in DCS
 
 <img width="991" height="880" alt="image" src="https://github.com/user-attachments/assets/c52dceb0-7d90-412c-8728-c129cb6311c8" />
 For the image above, we are testing (uncommented lines):
-anisotropy =1,2,4,8,16 | RestartRequired=DCS
-canopyReflections =0,0.50,0.75,0.88,1.00 | RestartRequired=None
-chimneySmokeDensity =0,5,8,9,10 | RestartRequired=None
+ - anisotropy values ranging from 1,2,4,8 to 16 and requiring DCS restart
+ - canopyReflections values ranging from 0,0.50,0.75,0.88 to 1.00 requiring NO DCS restart
+ - chimneySmokeDensity values ranging from 0,5,8,9,10 requiring NO DCS restart
 
 So the script will 
 0) Ctore current value for **anisotropy** in options.lua
@@ -190,7 +191,7 @@ So the script will
  6) After all tests are completed DCS wil be closed. all progress is recorded in the log file (_.\4-Performance-Testing\4.1.2-dcs-testing-automation.log_), that also is displayed during tests
 
 ```powershell
-# Configure the desired testes in 
+# Configure the Tests to be run
 # Uncomment the desired tests lines
 .\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini
 
