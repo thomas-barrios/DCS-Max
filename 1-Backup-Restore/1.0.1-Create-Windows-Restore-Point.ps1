@@ -1,23 +1,33 @@
 # Create Windows System Restore Point for DCS-Max
+# Optional: -NoPause to skip the pause at end (for automation/UI)
+
+param([switch]$NoPause = $false)
 
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
 
-Write-Host "Creating Windows System Restore Point..."
+$timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 
-# Check if running as administrator
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "Error: This script requires administrator privileges." -ForegroundColor Red
-    Write-Host "Please right-click PowerShell and select 'Run as Administrator', then run this script again." -ForegroundColor Yellow
-    exit 1
-}
+# Header
+Write-Host ""
+Write-Host "[RESTORE POINT] Windows System Restore Point" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[DATE]   $timestamp" -ForegroundColor Gray
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
 
 try {
     # Create restore point
     Checkpoint-Computer -Description "DCS-Max Operation - $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -RestorePointType "MODIFY_SETTINGS"
-    Write-Host "System Restore Point created successfully!" -ForegroundColor Green
+    Write-Host "[OK]     System restore point created" -ForegroundColor Green
+    
+    # Summary
+    Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "[DONE]   Restore point creation complete" -ForegroundColor Green
+    Write-Host ""
 } catch {
-    Write-Host "Failed to create System Restore Point: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[FAIL]   $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    if (-not $NoPause) { Pause }
     exit 1
 }
-Pause
+if (-not $NoPause) { Pause }

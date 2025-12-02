@@ -11,15 +11,11 @@
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
 
-
-
-# Set execution policy to allow script to run
+# Set execution policy when running interactively
 try {
-    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction Stop
-    Write-Host "Execution policy set to RemoteSigned for current user" -ForegroundColor Green
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction SilentlyContinue
 } catch {
-    Write-Error "Failed to set execution policy: $_"
-    exit
+    # Ignore - policy may already be set or overridden by group policy
 }
 
 $servicesToModify = @(

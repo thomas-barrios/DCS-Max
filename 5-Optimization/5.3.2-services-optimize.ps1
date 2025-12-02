@@ -2,24 +2,21 @@
 
 # PowerShell Script to Optimize Windows 11 Services for DCS World (VR + Joysticks)
 # Purpose: Minimize frame times, eliminate stutters, ensure stability for competitive gaming
-# Date: October 19, 2025
-# Notes: Run as Administrator. Reversible via Restore-Services function.
-#
-# This script disables the selected services.
-# and writes a Restore-Services.ps1 file to restore changes
+# Notes: Run as Administrator. Reversible via 1.3.3-services-restore-from-backup.ps1
+# Optional: -NoPause to skip the pause at end (for automation/UI)
+
+param([switch]$NoPause = $false)
 
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
 
-
-# Set execution policy to allow script to run
+# Set execution policy
 try {
-    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction Stop
-    Write-Host "Execution policy set to RemoteSigned for current user" -ForegroundColor Green
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction SilentlyContinue
 } catch {
-    Write-Error "Failed to set execution policy: $_"
-    exit
+    # Ignore - policy may already be set
 }
+
 
 $servicesToModify = @(
     # Telemetry & Diagnostics
@@ -120,86 +117,109 @@ $servicesToModify = @(
     @{Name="Power"; StartupType="Disabled"; Comment="Power: Known to cause VR stutters due to dynamic power state changes"}
 )
 
+# Paths
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDirectory = Split-Path -Parent $scriptDir
+$backupDir = Join-Path $rootDirectory "Backups"
+$timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
+$displayDate = Get-Date -Format 'MM/dd/yyyy HH:mm:ss'
+$backupFile = "$timestamp-services-backup.json"
+$backupPath = Join-Path $backupDir $backupFile
+
+# Counters
+$disabled = 0
+$notFound = 0
+$failed = 0
+$totalServices = $servicesToModify.Count
+
+# Ensure Backups directory exists
+if (-not (Test-Path $backupDir)) {
+    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+}
+
+# Header
+Write-Host ""
+Write-Host "Starting optimization..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[OPTIMIZE] DCS-Max: Windows Services Optimization" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[DATE]   Optimization Date: $displayDate" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   Processing $totalServices services for optimization" -ForegroundColor Gray
+Write-Host ""
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+
 # Create backup before optimization
-Write-Host "Creating services backup before optimization..." -ForegroundColor Yellow
-$backupScript = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "../1.Backup-restore/1.3.1-services-backup.ps1"
+Write-Host ""
+Write-Host "[BACKUP] Creating backup before optimization..." -ForegroundColor Yellow
+Write-Host ""
+
+$backupScript = Join-Path $rootDirectory "1-Backup-Restore\1.3.1-services-backup.ps1"
 $servicesToBackup = $servicesToModify | ForEach-Object { $_.Name }
 if (Test-Path $backupScript) {
     try {
-        & $backupScript -ServicesToBackup $servicesToBackup
-        Write-Host "Backup completed successfully." -ForegroundColor Green
+        & $backupScript -ServicesToBackup $servicesToBackup -NoPause
+        Write-Host ""
+        Write-Host "[OK]     Backup created successfully" -ForegroundColor Green
     } catch {
-        Write-Warning "Backup script failed: $_"
+        Write-Host "[WARN]   Backup failed: $_" -ForegroundColor Yellow
     }
 } else {
-    Write-Warning "Backup script not found: $backupScript"
+    Write-Host "[WARN]   Backup script not found at: $backupScript" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[OPTIMIZE] Disabling services..." -ForegroundColor Yellow
+Write-Host ""
+
+foreach ($service in $servicesToModify) {
+    $svc = Get-Service -Name $service.Name -ErrorAction SilentlyContinue
+    if ($svc) {
+        try {
+            Set-Service -Name $service.Name -StartupType $service.StartupType -ErrorAction Stop
+            if ($svc.Status -eq "Running") {
+                Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+            }
+            Write-Host "[OK]     $($service.Name) -> $($service.StartupType)" -ForegroundColor Green
+            $disabled++
+        } catch {
+            $errMsg = "$_".Trim()
+            Write-Host "[FAIL]   $($service.Name) - $errMsg" -ForegroundColor Red
+            $failed++
+        }
+    } else {
+        Write-Host "[SKIP]   $($service.Name) (not found)" -ForegroundColor DarkGray
+        $notFound++
+    }
+}
+
+# Summary
+Write-Host ""
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[SUMMARY] Optimization Summary:" -ForegroundColor Cyan
+Write-Host "[OK]     Disabled: $disabled" -ForegroundColor Green
+Write-Host "[SKIP]   Not found: $notFound" -ForegroundColor DarkGray
+Write-Host "[FAIL]   Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "DarkGray" })
+Write-Host ""
+Write-Host "[INFO]   $notFound services were not found on this system." -ForegroundColor Gray
+Write-Host "         This is normal - not all services exist on every Windows installation." -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   Restart your PC for all changes to take effect." -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   To restore, run:" -ForegroundColor Gray
+Write-Host "         .\1-Backup-Restore\1.3.3-services-restore-from-backup.ps1" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[OK]     Windows services optimization completed!" -ForegroundColor Green
+Write-Host ""
+
+if ($failed -eq 0) {
+    Write-Host "[SUCCESS] Optimization completed successfully!" -ForegroundColor Green
+} else {
+    Write-Host "[WARN] Optimization completed with $failed errors" -ForegroundColor Yellow
 }
 Write-Host ""
 
-# Store original service states for reversibility
-$serviceStates = @{}
-
-# Function to Optimize Services
-function Optimize-Services {
-    Write-Host "Optimizing services for DCS World performance..." -ForegroundColor Green
-
-    foreach ($service in $servicesToModify) {
-        $svc = Get-Service -Name $service.Name -ErrorAction SilentlyContinue
-        if ($svc) {
-            # Store original state
-            $serviceStates[$service.Name] = @{
-                StartupType = (Get-WmiObject -Class Win32_Service -Filter "Name='$($service.Name)'").StartMode
-                State = $svc.Status
-            }
-
-            # Set new startup type
-            Write-Host "Disabling $($service.Name): $($service.Comment)"
-            try {
-                Set-Service -Name $service.Name -StartupType $service.StartupType -ErrorAction Stop
-                if ($svc.Status -eq "Running") {
-                    Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
-                }
-            } catch {
-                Write-Warning "Failed to modify $($service.Name): $_"
-            }
-        } else {
-            Write-Warning "Service $($service.Name) not found"
-        }
-    }
-
-    Write-Host "Service optimization complete!" -ForegroundColor Green
-}
-
-# Function to Restore Original Service States
-function Restore-Services {
-    Write-Host "Restoring original service states..." -ForegroundColor Yellow
-
-    foreach ($serviceName in $serviceStates.Keys) {
-        $original = $serviceStates[$serviceName]
-        $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-        if ($svc) {
-            Write-Host "Restoring $serviceName to $($original.StartupType)"
-            try {
-                Set-Service -Name $serviceName -StartupType $original.StartupType -ErrorAction Stop
-                if ($original.State -eq "Running" -and $svc.Status -ne "Running") {
-                    Start-Service -Name $serviceName -ErrorAction SilentlyContinue
-                }
-            } catch {
-                Write-Warning "Failed to restore $serviceName - $_"
-            }
-        }
-    }
-
-    Write-Host "Service restoration complete!" -ForegroundColor Yellow
-}
-
-# Execute Optimization
-Optimize-Services
-
-# Instructions for Reversal
-Write-Host "`nTo revert changes, run the following command in an elevated PowerShell:" -ForegroundColor Cyan
-Write-Host ".\1.Backup-restore\1.3.2-services-restore.ps1"
-Write-Host "`nTo verify service states, use: Get-Service | Sort-Object DisplayName | Format-Table Name, DisplayName, Status, StartType"
-Write-Host "Backup created before optimization." -ForegroundColor Cyan
-Write-Host "Check restoration script and json backups at same folder." -ForegroundColor Cyan
-Write-Host "Restart your PC after running this script for changes to take effect." -ForegroundColor Cyan
+if (-not $NoPause) { Pause }

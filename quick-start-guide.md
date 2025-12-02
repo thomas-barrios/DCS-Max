@@ -1,10 +1,9 @@
-
-# 🛩️ DCS Max Quick Start
+# 🛩️ DCS-Max Quick Start Guide
 
 **Push Your Rig to Full Thrust in 5 Minutes!**
 
 
-## 🎯 **What You’ll Achieve**
+## 🎯 **What You'll Achieve**
 
 - Create full-thrust system backups
 - Apply high-performance optimizations
@@ -12,19 +11,23 @@
 - Boost FPS, reduce stutters, and accelerate load times
 
 
-### Prerequisites Check
+## 📋 **Prerequisites Check**
 
 **Required Software:**
-- ✅ Windows 10/11 (Admin)
-- ✅ PowerShell (built-in)
-- ✅ DCS World
+- ✅ Windows 10/11 (Admin privileges)
+- ✅ PowerShell 5.1+ (built-in)
+- ✅ DCS World (any version)
 - ✅ AutoHotkey v2.0 – [Download](https://www.autohotkey.com/v2/)
 - ✅ CapFrameX – [Download](https://www.capframex.com/)
+- ✅ Notepad++ – [Download](https://notepad-plus-plus.org/)
+
+**Optional (for GUI):**
+- ✅ Node.js 18+ – [Download](https://nodejs.org/)
 
 
-### Download and Setup
+## 📥 **Download and Setup**
 
-1. **Download** DCS Max
+1. **Download** DCS-Max from [GitHub Releases](https://github.com/thomas-barrios/DCS-Max/releases)
 2. **Extract** to a folder like `C:\DCS-Max\`
 3. **Right-click PowerShell** → "Run as Administrator"
 4. **Navigate** to the extracted folder:
@@ -33,18 +36,35 @@
    ```
 
 
-### Create System Restore Point (Manual)
+## 🖥️ **Option A: Use the Graphical UI (Recommended)**
+
+The easiest way to use DCS-Max — no command-line experience needed!
+
+1. Navigate to the `ui-app` folder
+2. Double-click `DCS-Max.bat`
+3. Use the visual interface for all operations
+
+📖 See [`ui-app/USER-GUIDE.md`](ui-app/USER-GUIDE.md) for full UI documentation.
+
+---
+
+## 💻 **Option B: Use PowerShell Scripts**
+
+For users who prefer command-line or want maximum control.
+
+
+### Create System Restore Point
 
 **Always create a restore point before you push your rig to full thrust!**
 
 ```powershell
-Checkpoint-Computer -Description "Before DCS Max" -RestorePointType "MODIFY_SETTINGS"
+Checkpoint-Computer -Description "Before DCS-Max" -RestorePointType "MODIFY_SETTINGS"
 ```
 
 
 ### Step 1: Run the Backups
 
-🔄 **Backup Scripts (Backups/)**
+🔄 **Backup Scripts (1-Backup-Restore/)**
 
 **Create a safety backup before any optimizations:**
 
@@ -64,12 +84,15 @@ Checkpoint-Computer -Description "Before DCS Max" -RestorePointType "MODIFY_SETT
 
 
 ### Step 2: Download and Install the Utilities
-- Windows unattended installation (if installing Windows from scratch)
-- WinUtil
-- O&O ShutUp10
-- NVIDIA Profile Inspector
-- Google Drive
 
+Optional utilities for additional optimization:
+
+- **WinUtil** – Windows optimization GUI
+- **O&O ShutUp10** – Privacy and telemetry control
+- **NVIDIA Profile Inspector** – Advanced GPU settings
+- **Google Drive** – Cloud backup for DCS configs
+
+See `2-Utilities/` for detailed setup instructions.
 
 
 ### Step 3: Import Templates for Full Thrust
@@ -77,18 +100,22 @@ Checkpoint-Computer -Description "Before DCS Max" -RestorePointType "MODIFY_SETT
 **Pre-configured templates in `3-Templates/` for:**
 - Windows unattended install
 - WinUtil config
-- O&O ShutUp10 privacy
-- NVIDIA Profile Inspector
-- Google Drive backup
-
+- O&O ShutUp10 privacy settings
+- NVIDIA Profile Inspector profile
+- Google Drive backup scheduling
 
 
 ### Step 4: Performance Check – Baseline Your Thrust
 
 🧪 **Performance Testing Scripts (4-Performance-Testing/)**
 
+Run a baseline test before optimization:
+
 ```powershell
-# DCS Testing Automation (AutoHotkey script)
+# Configure test settings first
+notepad .\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini
+
+# Then run DCS Testing Automation (double-click in Explorer)
 .\4-Performance-Testing\4.1.2-dcs-testing-automation.ahk
 ```
 
@@ -98,6 +125,9 @@ Checkpoint-Computer -Description "Before DCS Max" -RestorePointType "MODIFY_SETT
 ⚡ **Optimization Scripts (5-Optimization/)**
 
 ```powershell
+# Clean Caches first
+.\5-Optimization\5.4.1-clean-caches.bat
+
 # Registry Optimization (double-click to apply)
 .\5-Optimization\5.1.2-registry-optimize.reg
 
@@ -106,26 +136,18 @@ Checkpoint-Computer -Description "Before DCS Max" -RestorePointType "MODIFY_SETT
 
 # Services Optimization
 .\5-Optimization\5.3.2-services-optimize.ps1
-
-# Clean Caches (Batch file)
-.\5-Optimization\5.4.1-clean-caches.bat
 ```
 
 
 ### Step 6: Test Your Performance After Optimization
 
-2. **Run automated DCS benchmark:**
-   ```
+1. **Restart your computer** to apply all changes
+2. **Run automated DCS benchmark** again:
+   ```powershell
    # Double-click this file in Windows Explorer:
    .\4-Performance-Testing\4.1.2-dcs-testing-automation.ahk
    ```
-
-### Automated Performance Testing
-- Set up comprehensive DCS graphics testing with the benchmark automation
-- Test different settings combos to find your optimal thrust
-- Use CapFrameX for detailed performance analysis
-
-
+3. **Compare results** in CapFrameX to measure improvement
 
 
 ## 🛡️ **Safety: How to Restore Control**
@@ -147,17 +169,13 @@ If you experience any issues, restore your original settings:
 ```
 
 
-
-
-
-
-
-
 ## 📚 **Learn More**
 
-- **[Installation Guide](README.md#quick-installation--setup)** – Full-thrust setup for all features
-- **[Performance Guide](performance-guide.md)** – Engineering every FPS gain
-- **[Troubleshooting](troubleshooting.md)** – Regain control, restore thrust
+- **[Full README](README.md)** – Complete documentation
+- **[Performance Optimizations](performance-optimizations.md)** – Detailed optimization reference
+- **[Performance Guide](performance-guide.md)** – Understanding every optimization
+- **[Troubleshooting](troubleshooting.md)** – Problem resolution guide
+- **[UI User Guide](ui-app/USER-GUIDE.md)** – Graphical interface documentation
 
 
 ## 🆘 **Need Help?**
@@ -175,6 +193,5 @@ If you experience any issues, restore your original settings:
 - **Keep the backup files** created by the scripts for safety
 
 ---
-
 
 **🛩️ Ready to push your rig to full thrust? Your optimized DCS experience awaits!**

@@ -4,21 +4,18 @@
 # Date: November 12, 2025
 # Usage: Run to set up automated backups
 
-Write-Host "Starting DCS Backup Scheduling Script..." -ForegroundColor Green
+param([switch]$NoPause = $false)
 
-# Set execution policy to allow script to run
-try {
-    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction Stop
-    Write-Host "[OK] Execution policy set to RemoteSigned for current user" -ForegroundColor Green
-} catch {
-    Write-Error "[ERROR] Failed to set execution policy: $_"
-    exit 1
+# Assure administrator privileges
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { 
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -NoPause:`$$NoPause" -Verb RunAs
+    exit 
 }
 
-Write-Host "[SCHEDULE] DCS-Max: Schedule DCS Backup" -ForegroundColor Cyan
-Write-Host "======================================" -ForegroundColor Cyan
-Write-Host "[DATE] Setup Date: $(Get-Date)" -ForegroundColor White
 Write-Host ""
+Write-Host "[SCHEDULE] DCS-Max: Schedule DCS Backup" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[DATE]   $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
 
 # Get script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -35,43 +32,34 @@ if (-not (Test-Path $backupScriptPath)) {
 $taskName = "DCS-Max Logon Backup"
 $taskDescription = "Automated DCS World configuration backup at user logon"
 
-Write-Host "[CONFIG] Creating scheduled task:" -ForegroundColor Yellow
-Write-Host "   [NAME] Task Name: $taskName" -ForegroundColor White
-Write-Host "   [DATE] Schedule: At user logon" -ForegroundColor White
-Write-Host "   [SCRIPT] Script: $(Split-Path $backupScriptPath -Leaf)" -ForegroundColor White
-Write-Host ""
+Write-Host "[TASK]   $taskName" -ForegroundColor Gray
+Write-Host "[SCRIPT] $(Split-Path $backupScriptPath -Leaf)" -ForegroundColor Gray
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
 
 try {
     # Check if task already exists
     $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     
     if ($existingTask) {
-        Write-Host "[WARNING] Task '$taskName' already exists." -ForegroundColor Yellow
-        $response = Read-Host "Do you want to update it? (Y/N)"
-        
-        if ($response -eq 'Y' -or $response -eq 'y') {
-            try {
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
-                Write-Host "[REMOVED] Removed existing task" -ForegroundColor Yellow
-            } catch {
-                Write-Error "[ERROR] Failed to remove existing task: $_"
-                Write-Host "Please manually delete the task in Task Scheduler or run as administrator." -ForegroundColor Red
-                exit 1
-            }
-        } else {
-            Write-Host "[CANCELLED] Operation cancelled by user" -ForegroundColor Red
-            exit 0
+        Write-Host "[INFO]   Task already exists, updating..." -ForegroundColor Yellow
+        try {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
+            Write-Host "[OK]     Removed existing task" -ForegroundColor Green
+        } catch {
+            Write-Host "[FAIL]   Failed to remove existing task: $_" -ForegroundColor Red
+            Write-Host "[INFO]   Run as administrator or manually delete in Task Scheduler" -ForegroundColor Gray
+            exit 1
         }
     }
     
     # Create the action (what the task will do)
-    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$backupScriptPath`" -Quiet"
+    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$backupScriptPath`" -NoPause -Quiet"
     
     # Create the trigger (when the task will run)
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
     
     # Add delay to ensure system is fully loaded
-    $trigger.Delay = "PT2M"  # 2 minute delay after logon
+    # $trigger.Delay = "PT2M"  # 2 minute delay after logon
     
     # Create task settings
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false
@@ -81,35 +69,27 @@ try {
     
     # Register the task
     $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description $taskDescription
-    Register-ScheduledTask -TaskName $taskName -InputObject $task | Out-Null
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
     
-    Write-Host "[OK] Scheduled task created successfully!" -ForegroundColor Green
+    Write-Host "[OK]     Scheduled task created" -ForegroundColor Green
     
     # Display task information
-    $createdTask = Get-ScheduledTask -TaskName $taskName
-    Write-Host ""
-    Write-Host "[INFO] Task Details:" -ForegroundColor Cyan
-    Write-Host "   [NAME] Name: $($createdTask.TaskName)" -ForegroundColor White
-    Write-Host "   [DESC] Description: $($createdTask.Description)" -ForegroundColor White
-    Write-Host "   [USER] User: $($createdTask.Principal.UserId)" -ForegroundColor White
-    Write-Host "   [LEVEL] Run Level: $($createdTask.Principal.RunLevel)" -ForegroundColor White
-    Write-Host "   [SCHEDULE] Next Run: $((Get-ScheduledTask -TaskName $taskName | Get-ScheduledTaskInfo).NextRunTime)" -ForegroundColor White
+    Write-Host "[OK]     Trigger: At user logon" -ForegroundColor Green
+    Write-Host "[OK]     User: $env:USERNAME" -ForegroundColor Green
     
 } catch {
-    Write-Error "[ERROR] Failed to create scheduled task: $_"
+    Write-Host "[FAIL]   Failed to create scheduled task: $_" -ForegroundColor Red
     exit 1
 }
 
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+Write-Host "[SUMMARY] Task scheduled successfully" -ForegroundColor Cyan
+Write-Host "[INFO]   Task will run automatically at each logon" -ForegroundColor Gray
+Write-Host "[INFO]   View in Task Scheduler: $taskName" -ForegroundColor Gray
+Write-Host "[DONE]   DCS backup scheduling complete" -ForegroundColor Green
 Write-Host ""
-Write-Host "[NEXT] Next Steps:" -ForegroundColor Yellow
-Write-Host "   1. Task will run automatically at user logon" -ForegroundColor White
-Write-Host "   2. Check Task Scheduler to modify settings if needed" -ForegroundColor White
-Write-Host "   3. Test the task by logging out and back in, or run manually" -ForegroundColor White
-Write-Host ""
-Write-Host "[MANAGE] Management Options:" -ForegroundColor Yellow
-Write-Host "   - View Task: Get-ScheduledTask '$taskName' | Get-ScheduledTaskInfo" -ForegroundColor Gray
-Write-Host "   - Remove Task: Unregister-ScheduledTask '$taskName' -Confirm:`$false" -ForegroundColor Gray
-Write-Host "   - Run Now: Start-ScheduledTask '$taskName'" -ForegroundColor Gray
-Write-Host ""
-Write-Host "[OK] DCS backup scheduling completed successfully!" -ForegroundColor Green
-Pause
+
+if (-not $NoPause) {
+    Write-Host "Press any key to continue..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}

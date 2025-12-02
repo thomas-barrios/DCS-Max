@@ -1,6 +1,8 @@
-# Registry Backup Script for DCS Life Saver
+# Registry Backup Script for DCS-Max
 # Creates backup of specific registry values before optimization
-# Optimized version with no code duplication
+# Optional: -NoPause to skip the pause at end (for automation/UI)
+
+param([switch]$NoPause = $false)
 
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
@@ -13,12 +15,30 @@ $rootDirectory = Split-Path -Parent $scriptDirectory
 $backupsDirectory = Join-Path $rootDirectory "Backups"
 $fullBackupPath = Join-Path $backupsDirectory $backupFile
 
+# Counters for summary
+$script:backedUp = 0
+$script:skipped = 0
+
 # Ensure Backups directory exists
 if (-not (Test-Path $backupsDirectory)) {
     New-Item -ItemType Directory -Path $backupsDirectory -Force | Out-Null
 }
 
-Write-Host "CREATING REGISTRY BACKUP" -ForegroundColor Green
+# Header
+Write-Host ""
+Write-Host "Starting backup..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[BACKUP] DCS-Max: Registry Backup" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[DATE]   Backup Date: $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[FILE]   Saving to: $fullBackupPath" -ForegroundColor Gray
+Write-Host ""
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[BACKUP] Scanning registry values..." -ForegroundColor Yellow
+Write-Host ""
 
 # Create .reg file header
 $regContent = @"
@@ -60,10 +80,12 @@ $regValue
 
 "@
         
-        Write-Host "Backed up: $Description = $displayValue" -ForegroundColor Yellow
+        Write-Host "[OK]     $Description = $displayValue" -ForegroundColor Green
+        $script:backedUp++
         
     } catch {
-        Write-Host "Skipped: $Description (not currently configured)" -ForegroundColor Gray
+        Write-Host "[SKIP]   $Description (not configured)" -ForegroundColor DarkGray
+        $script:skipped++
     }
 }
 
@@ -149,7 +171,19 @@ foreach ($setting in $registrySettings) {
 # Write backup file
 $regContent | Out-File -FilePath $fullBackupPath -Encoding ASCII
 
-Write-Host "Registry backup completed:"  -ForegroundColor Green
-Write-Host "To restore values double click the following restore file:"  
-Write-Host $fullBackupPath -ForegroundColor Green
-Pause
+# Summary
+Write-Host ""
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[SUMMARY] Backup Summary:" -ForegroundColor Cyan
+Write-Host "[OK]     Backed up: $script:backedUp" -ForegroundColor Green
+Write-Host "[SKIP]   Not configured: $script:skipped" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[INFO]   To restore, run:" -ForegroundColor Gray
+Write-Host "         .\1.1.3-registry-restore.ps1 -RegFile `"$backupFile`"" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[OK]     Registry backup completed!" -ForegroundColor Green
+Write-Host ""
+Write-Host "[SUCCESS] Backup completed successfully!" -ForegroundColor Green
+Write-Host ""
+
+if (-not $NoPause) { Pause }

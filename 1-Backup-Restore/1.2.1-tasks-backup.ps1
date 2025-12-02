@@ -2,6 +2,9 @@
 # Backs up DCS-optimized Scheduled Tasks (state, triggers, actions) to XML.
 # RESTORE: Import-Clixml + Enable-ScheduledTask
 # Run AS ADMIN. Path: Auto-saves to script folder.
+# Optional: -NoPause to skip the pause at end (for automation/UI)
+
+param([switch]$NoPause = $false)
 
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
@@ -16,10 +19,32 @@ if (-not (Test-Path $backupDir)) {
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 }
 
+# Counters
+$backedUp = 0
+$notFound = 0
 
 # 1. BACKUP DCS-OPTIMIZED TASKS
 $timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
-$fullBackupPath = Join-Path $backupDir ("$timestamp-tasks-backup.xml")
+$backupFile = "$timestamp-tasks-backup.xml"
+$fullBackupPath = Join-Path $backupDir $backupFile
+
+# Header
+Write-Host ""
+Write-Host "Starting backup..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[BACKUP] DCS-Max: Scheduled Tasks Backup" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[DATE]   Backup Date: $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[FILE]   Saving to: $fullBackupPath" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   Processing $($tasksToOptmize.Count) scheduled tasks" -ForegroundColor Gray
+Write-Host ""
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[BACKUP] Scanning for DCS-optimized tasks..." -ForegroundColor Yellow
+Write-Host ""
 
 $tasksToOptmize = @(
     "\MicrosoftEdgeUpdateTaskMachineCore{39097A80-6523-43D6-BACB-628BA6DD09F0}",
@@ -92,17 +117,33 @@ foreach ($fullId in $tasksToOptmize) {
     try {
         $task = Get-ScheduledTask -TaskPath $taskPath -TaskName $taskName -ErrorAction Stop
         $ourTasks += $task
-        Write-Host "BACKED UP: $fullId" -ForegroundColor Green
+        Write-Host "[OK]     $taskName" -ForegroundColor Green
+        $backedUp++
     } catch {
-        Write-Host "NOT FOUND: $fullId" -ForegroundColor Yellow
+        Write-Host "[SKIP]   $taskName (not found)" -ForegroundColor DarkGray
+        $notFound++
     }
 }
 
 if ($ourTasks.Count -gt 0) {
     $ourTasks | Export-Clixml $fullBackupPath
-    Write-Host "`nDCS TASKS BACKUP CREATED!`nFile: $(Split-Path $fullBackupPath -Leaf)`nLocation: $backupDir`nRestore anytime with restore script.`n" -ForegroundColor Green
-} else {
-    Write-Host "No DCS-optimized tasks found to backup." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "[OK]     Backup saved with $($ourTasks.Count) tasks" -ForegroundColor Green
 }
 
-Pause
+# Summary
+Write-Host ""
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[SUMMARY] Backup Summary:" -ForegroundColor Cyan
+Write-Host "[OK]     Backed up: $backedUp" -ForegroundColor Green
+Write-Host "[SKIP]   Not found: $notFound" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[INFO]   To restore, run:" -ForegroundColor Gray
+Write-Host "         .\1.2.3-tasks-restore.ps1 -XmlFile `"$backupFile`"" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[OK]     Scheduled tasks backup completed!" -ForegroundColor Green
+Write-Host ""
+Write-Host "[SUCCESS] Backup completed successfully!" -ForegroundColor Green
+Write-Host ""
+
+if (-not $NoPause) { Pause }

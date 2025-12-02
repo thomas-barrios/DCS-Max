@@ -2,6 +2,11 @@
 REM DCS-Max Cache Cleaning Script
 REM Version: 5.4.1
 REM Purpose: Clean various caches that can affect DCS performance
+REM Usage: 5.4.1-clean-caches.bat [/NoPause]
+
+set "NOPAUSE=0"
+if /I "%~1"=="/NoPause" set "NOPAUSE=1"
+if /I "%~1"=="-NoPause" set "NOPAUSE=1"
 
 echo ========================================
 echo DCS-Max Cache Cleaner v5.4.1
@@ -42,4 +47,4 @@ echo.
 echo Cache cleaning completed!
 echo Please restart your computer for full effect.
 echo.
-pause
+if "%NOPAUSE%"=="0" pause

@@ -1,0 +1,20 @@
+<!-- Placeholder SVG icon for DCS-Max -->
+<svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#gradient)"/>
+  
+  <!-- Activity/Performance Icon -->
+  <path d="M 60 180 L 90 120 L 120 150 L 150 80 L 180 120 L 196 90" 
+        stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- DCS Text -->
+  <text x="128" y="220" font-family="Arial, sans-serif" font-size="32" font-weight="bold" 
+        fill="white" text-anchor="middle">DCS-MAX</text>
+</svg>

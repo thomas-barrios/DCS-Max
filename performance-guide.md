@@ -73,14 +73,16 @@ Use systematic benchmarking to measure and validate performance improvements acr
 
 From bottom to top, these are the layers that you will want to optimize:
 
-| Layer              | Focus                 | Description                                                |
-|--------------------|-----------------------|------------------------------------------------------------|
+| Layer             | Focus                | Description                                                   |
+|-------------------|----------------------|---------------------------------------------------------------|
 | PC Setup          | Architecture         | Low cost, medium, high end. Choosing the hardware accordingly |
-| Rig Optimization  | Overclock            | Overclocking Processor, Memory, Motherboard, BIOS          |
-| Win Setup         | Auto Install         | Easily installing and reinstalling Windows                 |
-| Win Optimization  | Debloat              | Removing everything, and configuring what is useful        |
-| DCS Optimization  | Optimal Settings     | Getting everything your machine can deliver                |
-| VR Optimization   | Optimal Settings     | Questioning your life choices                              |
+| Rig Optimization  | Overclock            | Overclocking Processor, Memory, Motherboard, BIOS, PSU, GPU   |
+| BIOS Optimization | Efitiency            | Settings, Temperatures, Periferals configs                    |
+| Win Setup         | Auto Install         | Easily installing and reinstalling Windows                    |
+| Win Optimization  | Debloat              | Removing everything, and configuring what is useful           |
+| VR Optimization   | Optimal Settings     | Questioning your life choices                                 |
+| DCS Optimization  | Optimal Settings     | Getting everything your machine can deliver                   |
+| Peripherals       | Setup                | Setting up mods and peripherals for DCS                       |
 
 ## ⚙️ Technical Optimization Breakdown
 

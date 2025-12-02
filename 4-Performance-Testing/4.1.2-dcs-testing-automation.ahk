@@ -2,59 +2,119 @@
 #SingleInstance Force
 
 ; ==============================
-; CONFIGURATION
+; COMMAND LINE ARGUMENTS
 ; ==============================
 
-; Wait time configuration (in milliseconds)
-; Adjust these values based on your system performance and requirements:
-; - Faster systems may need shorter waits
-; - Slower systems or loaded scenarios may need longer waits
-; - VR setups typically need longer initialization times
+; Check for headless mode (when run from DCS-Max app)
+HeadlessMode := false
+for arg in A_Args {
+    if (arg = "--headless") {
+        HeadlessMode := true
+        break
+    }
+}
 
-DryRun              := true    ; set to true to skip actual benchmark runs for testing
+; ==============================
+; INI FILE PATH
+; ==============================
+
+iniFile := A_ScriptDir "\4.1.1-dcs-testing-configuration.ini"
+
+; ==============================
+; HELPER FUNCTION TO READ CONFIG
+; ==============================
+
+ReadConfig(section, key, defaultValue) {
+    global iniFile
+    try {
+        value := IniRead(iniFile, section, key, "")
+        if (value = "" || value = "ERROR")
+            return defaultValue
+        ; Handle boolean values
+        if (value = "true" || value = "True" || value = "TRUE")
+            return true
+        if (value = "false" || value = "False" || value = "FALSE")
+            return false
+        ; Handle numeric values
+        if (RegExMatch(value, "^\d+$"))
+            return Integer(value)
+        ; Handle float values
+        if (RegExMatch(value, "^\d+\.\d+$"))
+            return Float(value)
+        ; Handle environment variables
+        if (InStr(value, "%")) {
+            value := StrReplace(value, "%USERPROFILE%", EnvGet("USERPROFILE"))
+            value := StrReplace(value, "%USERNAME%", EnvGet("USERNAME"))
+        }
+        return value
+    } catch {
+        return defaultValue
+    }
+}
+
+; ==============================
+; CONFIGURATION (with defaults)
+; ==============================
+
+; Helper to read with DevelopmentOverrides taking precedence
+ReadConfigWithOverride(key, defaultValue) {
+    ; First check DevelopmentOverrides section
+    devValue := ReadConfig("DevelopmentOverrides", key, "")
+    if (devValue != "")
+        return devValue
+    ; Fall back to Configuration section
+    return ReadConfig("Configuration", key, defaultValue)
+}
+
+; Core settings
+DryRun              := ReadConfigWithOverride("DryRun", false)
 
 ; VR Configuration
-EnableVR            := false    ; set to true to enable VR functionality, false to skip VR code
-VRhardware          := "Pimax"  ; VR hardware type options:
-                                ; "Pimax" - Pimax family (Crystal, Crystal Light, 8KX/5K) - High-FOV for dogfights, needs powerful PC
-                                ; FUTURE NOT AVAILABLE YET: 
-                                ; "MetaQuest" - Meta/Oculus Quest family (Quest 3, Quest 2/Pro) - Wireless via VD/Air Link, balanced res/FOV
-                                ; "HPReverbG2" - HP Reverb G2 - High-res workhorse, excellent text clarity, narrow FOV
-                                ; "ValveIndex" - Valve Index - Solid audio/tracking, reliable
-                                ; "Other" - Other VR headsets (Rift S, Vive Pro/2, Pico 4, Varjo Aero/XR)
+EnableVR            := ReadConfigWithOverride("EnableVR", false)
+VRhardware          := ReadConfigWithOverride("VRhardware", "Pimax")
 
-; WAITING TIMES (in milliseconds) MESURE YOUR TIMES AS THEY MAY VARY FROM PC TO PC
-WaitVR 		        := 15000    ; 15s wait for VR client to open
-WaitMissionReady 	:= 55000    ; 55s wait for DCS to open and mission to load
-WaitBeforeRecord    := 1000     ; 1s wait after mission start before recording
-WaitRecordLength    := 120000   ; 120s recording duration for benchmark
-WaitCapFrameXWrite  := 5000     ; 5s wait for CapFrameX to write JSON file after recording
-WaitMissionRestart  := 12000    ; 12s wait after record completion before next test
-WaitDCSRestart      := 30000    ; 30s wait for DCS to fully restart
+; Waiting Times (in milliseconds)
+WaitVR              := ReadConfigWithOverride("WaitVR", 15000)
+WaitMissionReady    := ReadConfigWithOverride("WaitMissionReady", 75000)
+WaitBeforeRecord    := ReadConfigWithOverride("WaitBeforeRecord", 3000)
+WaitRecordLength    := ReadConfigWithOverride("WaitRecordLength", 60000)
+WaitCapFrameXWrite  := ReadConfigWithOverride("WaitCapFrameXWrite", 5000)
+WaitMissionRestart  := ReadConfigWithOverride("WaitMissionRestart", 15000)
+WaitDCSRestart      := ReadConfigWithOverride("WaitDCSRestart", 30000)
 
 ; Test configuration
-NumberOfRuns        := 1        ; Number of benchmark runs per test setting (adjust as needed). Will test X times each setting/value combination
-MaxRetries          := 1        ; Maximum retries for failed operations
+NumberOfRuns        := ReadConfigWithOverride("NumberOfRuns", 1)
+MaxRetries          := ReadConfigWithOverride("MaxRetries", 1)
 
-; Time tracking variables
-TotalTestCount := 0         ; Total number of tests to run
-CompletedTestCount := 0     ; Tests completed so far
-StartTime := ""             ; Benchmark start timestamp
-BaseTimePerTest := 0        ; Average time per test in seconds
+; Time tracking variables (internal, not configurable)
+TotalTestCount := 0
+CompletedTestCount := 0
+StartTime := ""
+BaseTimePerTest := 0
 
-; File paths
+; File paths (with defaults)
+optionsLua          := ReadConfigWithOverride("optionsLua", EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua")
+dcsExe              := ReadConfigWithOverride("dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe")
 capframexFolder     := A_MyDocuments "\CapFrameX\Captures"
-optionsLua          := EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua"
-iniFile             := A_ScriptDir "\4.1.1-dcs-testing-configuration.ini"   ; Defines witch settings/values to test
+
 logFile             := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
 checkpointFile      := A_ScriptDir "\4.1.4-checkpoint.txt"
 
-; Application paths
-dcsExe              := "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"  ; Update path as needed
-capframex           := "C:\Program Files (x86)\CapFrameX\CapFrameX.exe"
-pimax               := "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
-notepadpp           := "C:\Program Files\Notepad++\notepad++.exe"  ; Update path if different
-mission             := A_ScriptDir "\benchmark-missions\multiplayer-JustDogfights-2min-v1.miz"
+capframex           := ReadConfigWithOverride("capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe")
+pimax               := ReadConfigWithOverride("pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe")
+notepadpp           := ReadConfigWithOverride("notepadpp", "C:\Program Files\Notepad++\notepad++.exe")
+
+; Mission path - if configured in INI, use it; otherwise use default
+missionFromIni      := ReadConfigWithOverride("mission", "")
+if (missionFromIni != "") {
+    ; If path doesn't start with drive letter, treat as relative to script folder
+    if (!RegExMatch(missionFromIni, "^[A-Za-z]:"))
+        mission := A_ScriptDir "\" missionFromIni
+    else
+        mission := missionFromIni
+} else {
+    mission := A_ScriptDir "\benchmark-missions\PB-caucasus-tibilisi-multiplayer-28air-50ground-cavok-mp-JustDogfights-v2-take1-2min.miz"
+}
 
 ; ==============================
 ; INITIAL SETUP
@@ -76,8 +136,30 @@ originalLua := FileRead(optionsLua)
 SplitPath logFile, , &logDir
 DirCreate logDir
 
-FileAppend "`n", logFile  ; Add blank line before start
+; Start Notepad++ in monitor mode (only in interactive mode)
+if (!HeadlessMode) {
+    if FileExist(notepadpp) {
+        Run notepadpp ' -monitor "' logFile '"'
+        Sleep 500  ; Brief pause to let Notepad++ open
+    }
+}
+
+LogWithTimestamp("")
 LogWithTimestamp("=== DCS BATCH BENCHMARK START ===")
+LogWithTimestamp("Configuration loaded from: " iniFile)
+LogWithTimestamp("--- Configuration Summary ---")
+LogWithTimestamp("  DryRun: " (DryRun ? "true" : "false"))
+LogWithTimestamp("  EnableVR: " (EnableVR ? "true" : "false") " | VRhardware: " VRhardware)
+LogWithTimestamp("  WaitVR: " (WaitVR/1000) "s | WaitMissionReady: " (WaitMissionReady/1000) "s")
+LogWithTimestamp("  WaitBeforeRecord: " (WaitBeforeRecord/1000) "s | WaitRecordLength: " (WaitRecordLength/1000) "s")
+LogWithTimestamp("  WaitCapFrameXWrite: " (WaitCapFrameXWrite/1000) "s | WaitMissionRestart: " (WaitMissionRestart/1000) "s")
+LogWithTimestamp("  NumberOfRuns: " NumberOfRuns " | MaxRetries: " MaxRetries)
+LogWithTimestamp("  HeadlessMode: " (HeadlessMode ? "true" : "false"))
+LogWithTimestamp("--- Paths ---")
+LogWithTimestamp("  optionsLua: " optionsLua)
+LogWithTimestamp("  dcsExe: " dcsExe)
+LogWithTimestamp("  mission: " mission)
+LogWithTimestamp("-----------------------------")
 
 ; Check for existing checkpoint and resume if needed
 resumePoint := LoadCheckpoint()
@@ -269,9 +351,9 @@ MainTestLoop() {
                 Loop NumberOfRuns {
                     runNum := A_Index
                     LogWithTimestamp("--- RUNNING TEST " testIndex "/" TotalTestCount " Run " runNum "/" NumberOfRuns " ---")
-                    ;LogWithTimestamp("Setting: " setting " | Value: " value " | RestartType: " restartType)
-
-                    if (!RunBenchmark(setting, value, restartType)) {
+                    ; Determine if this is the last test and last run
+                    isLastTest := (testIndex = TotalTestCount) && (runNum = NumberOfRuns)
+                    if (!RunBenchmark(setting, value, restartType, isLastTest)) {
                         LogWithTimestamp("ERROR: Benchmark failed, skipping to next test")
                         break
                     }
@@ -294,7 +376,7 @@ MainTestLoop() {
 
         ; Reopen CapFrameX
         try {
-            if (!DryRun) { 
+            if (DryRun) { 
                 Run capframex 
                 LogWithTimestamp("DRY RUN: CapFrameX would restart successfully")
             } 
@@ -596,17 +678,21 @@ StartApplications() {
         LogWithTimestamp("VR disabled - skipping VR hardware setup")
     }
     
-    ; Start Notepad++
-    if !FileExist(notepadpp) {
-        LogWithTimestamp("ERROR: Notepad++ not found: " notepadpp)
-        MsgBox "Notepad++ not found: " notepadpp, "Error", 16
-        ExitApp
+    ; Start Notepad++ (only in interactive mode, not when run from app)
+    if (!HeadlessMode) {
+        if !FileExist(notepadpp) {
+            LogWithTimestamp("ERROR: Notepad++ not found: " notepadpp)
+            MsgBox "Notepad++ not found: " notepadpp, "Error", 16
+            ExitApp
+        }
+        
+        LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
+        Run notepadpp ' -monitor "' logFile '"'
+        Sleep 1000
+        LogWithTimestamp("Notepad++ started successfully")
+    } else {
+        LogWithTimestamp("Headless mode - skipping Notepad++ launch")
     }
-    
-    LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
-    Run notepadpp ' -monitor "' logFile '"'
-    Sleep 1000
-    LogWithTimestamp("Notepad++ started successfully")
 }
 
 StartDCS() {
@@ -1011,16 +1097,20 @@ SetConfigValue(setting, value) {
     }
 }
 
-RunBenchmark(setting, value, restartType) {
+RunBenchmark(setting, value, restartType, isLastTest := false) {
     global WaitBeforeRecord, WaitRecordLength, WaitCapFrameXWrite, WaitMissionRestart, MaxRetries, DryRun
-       
+   
     ; In DryRun mode, skip DCS interaction
     if (DryRun) {
         LogWithTimestamp("DRY RUN: Simulating benchmark sequence...")
         LogWithTimestamp("DRY RUN: Would " (WaitBeforeRecord/1000) "s wait  before recording")
         LogWithTimestamp("DRY RUN: Would " (WaitRecordLength/1000) "s while recording")
         LogWithTimestamp("DRY RUN: Would " (WaitCapFrameXWrite/1000) "s wait for file write")
-        LogWithTimestamp("DRY RUN: Would " (WaitMissionRestart/1000) "s wait for mission restart and reload")
+        if (!isLastTest) {
+            LogWithTimestamp("DRY RUN: Would " (WaitMissionRestart/1000) "s wait for mission restart and reload")
+        } else {
+            LogWithTimestamp("DRY RUN: Skipping mission restart for last test")
+        }
         return true
     }
     
@@ -1081,18 +1171,21 @@ RunBenchmark(setting, value, restartType) {
         Sleep WaitCapFrameXWrite
         UpdateCapFrameXComment(setting, value)
         LogWithTimestamp("CapFrameX comment updated: " setting "=" value)
-        
-        LogWithTimestamp("Mission restarted")
-        Send "{LShift down}"
-        Sleep 50
-        Send "r"
-        Sleep 50
-        Send "{LShift up}"
-        
-        LogWithTimestamp("Waiting " (WaitMissionRestart/1000) "s for DCS to reload mission")
-        Sleep WaitMissionRestart
-        LogWithTimestamp("Mission reload wait completed")
-        
+
+        if (!isLastTest) {
+            LogWithTimestamp("Mission restarted")
+            Send "{LShift down}"
+            Sleep 50
+            Send "r"
+            Sleep 50
+            Send "{LShift up}"
+            LogWithTimestamp("Waiting " (WaitMissionRestart/1000) "s for DCS to reload mission")
+            Sleep WaitMissionRestart
+            LogWithTimestamp("Mission reload wait completed")
+        } else {
+            LogWithTimestamp("Skipping mission restart for last test, proceeding to cleanup.")
+        }
+
         return true
         
     } catch as e {

@@ -5,6 +5,18 @@
 
 DCS-Max is a comprehensive automation suite designed to maximize DCS World performance, reduce stutters, and provide safe system backup/restore capabilities. Save time and get the best experience from your PC with professional-grade optimization tools.
 
+## 🖥️ **NEW: Graphical User Interface**
+
+DCS-Max now includes a modern Electron-based UI for easy management of all features:
+
+- **Visual Dashboard** - Overview of system info and quick actions
+- **One-Click Operations** - Backup, restore, and optimize with a single click
+- **Real-Time Monitoring** - Live log viewing and progress tracking
+- **Configuration Editor** - Visual INI editor for benchmark settings
+- **No Command Line Required** - User-friendly interface for all operations
+
+**To use the UI:** Navigate to `ui-app/` folder and see [UI Setup Guide](ui-app/SETUP.md)
+
 ## 🎯 **What This Suite Does**
 
 - **🚀 Automated DCS Performance Testing** - Test 128+ graphics settings combinations with CapFrameX integration
@@ -12,6 +24,7 @@ DCS-Max is a comprehensive automation suite designed to maximize DCS World perfo
 - **⚡ Windows Optimization** - Disable unnecessary services and tasks that cause stutters and frame drops
 - **📊 Performance Analytics** - Automated benchmarking with detailed logging and result tracking
 - **🔧 Easy Configuration** - Template-based setup for various optimization scenarios
+- **🖥️ Graphical Interface** - Modern UI for effortless management (NEW!)
 
 ## 🎮 **Target Audience**
 
@@ -30,10 +43,36 @@ Advanced DCS players and system administrators who want:
 - **PowerShell**: 5.1 or later (included with Windows)
 - **AutoHotkey v2.0**: For DCS automation
 - **CapFrameX**: For performance benchmarking
-- **Notepad++**: For loging visualization and scritp editing
+- **Notepad++**: For logging visualization and script editing
 
 
 ## ⚡ **Quick Installation & Setup**
+
+### 🖥️ Option 1: Use the Graphical UI (Recommended)
+
+**Easiest way to use DCS-Max - No command-line experience needed!**
+
+1. **Install Node.js 18+** from [nodejs.org](https://nodejs.org/)
+2. **Navigate** to the `ui-app` folder
+3. **Double-click** `install.bat`
+4. **Follow** the on-screen prompts
+5. **Start using** the UI - all features accessible with clicks!
+
+**Features:**
+- ✨ Visual dashboard with system information
+- 💾 One-click backup and restore
+- 🔧 Easy system optimization
+- 📊 Automated benchmark management
+- 📋 Real-time log viewing
+- ⚙️ Configuration editor
+
+📖 **Full UI Documentation**: See [`ui-app/USER-GUIDE.md`](ui-app/USER-GUIDE.md)
+
+---
+
+### 🖱️ Option 2: Use PowerShell Scripts (Advanced Users)
+
+For users who prefer command-line or want maximum control:
 
 ### Step 1: Download and Extract
 1. Download the latest release from the repository 
@@ -84,9 +123,9 @@ winget install --id=Notepad++.Notepad++ -e
 
 ## Utilization
 
-### Step 4 IMPORTANT: 🎮 Backup and Restore
+### Step 4: 🎮 Backup and Restore (IMPORTANT)
 
-Before any changes, make a backup sing the scripts bellow:
+Before any changes, make a backup using the scripts below:
 
 This will create individual backups, for affected files and settings only. Make sure you have already created a windows restore point!
 
@@ -137,18 +176,18 @@ Run each one and personalize according your prefferences.
 
 ### Step 6: 📄 Choose the Templates
 
-Alterantivelly, you can pick a configuration template from `3-Templates/` to utilization with the Utilities.
+Alternatively, you can pick a configuration template from `3-Templates/` for use with the Utilities.
 
-Reviwew and apply this templates, or create your owns using each utility.
-
-
+Review and apply these templates, or create your own using each utility.
 
 
-### Step 7: 🚀 Perforamce Testing
 
-Run a first time performance test to serve as baseline for future inprovements and tests.
 
-After each change, you can another tests to evaluate the respective change effect on DCS and PC performance.
+### Step 7: 🚀 Performance Testing
+
+Run a first-time performance test to serve as a baseline for future improvements.
+
+After each change, you can run additional tests to evaluate the effect on DCS and PC performance.
 
 #### Open and configure **.\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini**
 
@@ -174,13 +213,13 @@ For the image above, we are testing (uncommented lines):
  - canopyReflections values ranging from 0,0.50,0.75,0.88 to 1.00 requiring NO DCS restart
  - chimneySmokeDensity values ranging from 0,5,8,9,10 requiring NO DCS restart
 
-So the script will 
-0) Ctore current value for **anisotropy** in options.lua
+So the script will:
+0) Store current value for **anisotropy** in options.lua
 1) Change the DCS  value from current value to **anisotropy =1** in options.lua
 2) Start DCS and run a pre recorded mission track
 3) repeat the test X times as set in the scritp file (_.\4-Performance-Testing\4.1.2-dcs-testing-automation.ahk_)
 4) Close DCS and return **anisotropy** to its original value
-5) move on to the next tests
+5) Move on to the next tests
     - anisotropy=2
     - anisotropy=4
     - anisotropy=8
@@ -188,22 +227,22 @@ So the script will
     - canopyReflections=0
     - canopyReflections=0.5
     - and so on...
- 6) After all tests are completed DCS wil be closed. all progress is recorded in the log file (_.\4-Performance-Testing\4.1.2-dcs-testing-automation.log_), that also is displayed during tests
+6) After all tests are completed, DCS will be closed. All progress is recorded in the log file (`.\\4-Performance-Testing\\4.1.2-dcs-testing-automation.log`), which is also displayed during tests
 
 ```powershell
 # Configure the Tests to be run
-# Uncomment the desired tests lines
+# Uncomment the desired test lines
 .\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini
 
-# Review scritp configuration
-# Open the scritp in a text editor and check if
+# Review script configuration
+# Open the script in a text editor and check if:
 # - Paths are correct
-# - Waiting Times are correct (THEY CHANGE FROM PC TO PC, YOU HAVE TO MESURE YOURS!!!)
+# - Waiting times are correct (THEY VARY FROM PC TO PC - YOU MUST MEASURE YOURS!)
 # - Mouse Left button --> Edit with Notepad++
 .\4-Performance-Testing\4.1.2-dcs-testing-automation.ahk
 
 # Run automated DCS performance testing with CapFrameX integration
-# Double click the scritp
+# Double-click the script to run
 .\4-Performance-Testing\4.1.2-dcs-testing-automation.ahk
 
 # Features:
@@ -245,26 +284,25 @@ IMPORTANT: you have to change the default RecordKey in CapFrameX from "F11" to *
 <img width="1236" height="733" alt="image" src="https://github.com/user-attachments/assets/da075855-031f-4021-937c-563899c00c35" />
 
 
-### Step 5: 🚀 Performance Optimization
+### Step 8: 🚀 Performance Optimization
 
-After sucessfully runing the first automated test, you can otimize system and DCS settings and test any configuration wanted.
+After successfully running the first automated test, you can optimize system and DCS settings and test any configuration.
 
-Review the Optmizatio scritps and personalize them acconding to your needs.
+Review the optimization scripts and personalize them according to your needs.
 
-Open the scrips at: _.\5.Optimization\_
+Open the scripts at: `.\\5-Optimization\\`
 
-<img width="1133" height="762" alt="image" src="https://github.com/user-attachments/assets/4d605b0c-3326-48c8-9c43-2d6c86823ff2" />
+<img width="991" height="880" alt="image" src="https://github.com/user-attachments/assets/4d605b0c-3326-48c8-9c43-2d6c86823ff2" />
 
 
-Edit the scritps to your prefferes, or leave defaults
+Edit the scripts to your preferences, or leave defaults
 
 <img width="991" height="880" alt="image" src="https://github.com/user-attachments/assets/411442f3-04e8-4bf0-adda-8ca1e0cbf8c0" />
 
-Run the scritps in power shell
+Run the scripts in PowerShell:
 
 ```powershell
-#### Clear Cache
-```powershell
+# Clear Cache
 # Clean NVIDIA shader and DX cache, plus DCS-related caches (run as Administrator)
 .\5.Optimization\5.4.1-clean-caches.bat
 
@@ -285,7 +323,8 @@ Get-ScheduledTask | Where-Object {$_.State -eq 'Disabled'} | Select TaskName, St
 ```
 
 <img width="920" height="489" alt="image" src="https://github.com/user-attachments/assets/b64ee1e9-083f-4422-ad13-e0d858c8b9b4" />
-Sample scritp output
+
+*Sample script output*
 
 
 #### Restart and Verify
@@ -294,9 +333,9 @@ Sample scritp output
 3. Use verification commands to check applied optimizations:
 
 
-### Step 6: 🚀 Check Results and Repeat
+### Step 9: 🚀 Check Results and Repeat
 
-Each test run will be record at CapFrameX, compare test settings within CapCrameX 
+Each test run will be recorded in CapFrameX. Compare test settings within CapFrameX 
 
 <img width="1427" height="861" alt="image" src="https://github.com/user-attachments/assets/e1603d72-5c9d-421b-af3c-fdba64ab4519" />
 
@@ -425,9 +464,11 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
 
 ## 🔗 **Documentation Links**
 
-
+- 📖 **[Quick Start Guide](quick-start-guide.md)** - Get up and running fast
+- ⚡ **[Performance Optimizations](performance-optimizations.md)** - Detailed optimization reference
 - 🚀 **[Performance Guide](performance-guide.md)** - Understanding the optimizations
 - 🆘 **[Troubleshooting](troubleshooting.md)** - Detailed problem resolution
+- 🖥️ **[UI User Guide](ui-app/USER-GUIDE.md)** - Graphical interface documentation
 
 ## 📊 **Performance Impact**
 

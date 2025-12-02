@@ -1,10 +1,13 @@
 # Backup and Disable Windows Scheduled Tasks for DCS Optimization
-# Purpose: Backs up current states of specified tasks to JSON, then disables them to minimize background CPU/network usage,
+# Purpose: Backs up current states of specified tasks to XML, then disables them to minimize background CPU/network usage,
 # reducing frame times and stutters in DCS for competitive play (e.g., TACT, SATAL, JustDogFights servers).
 # Focus: Efficient, readable code with error handling; assumes run as Administrator.
 # Optimizations: Uses arrays/hashtables for fast lookups; processes in bulk; skips non-existent tasks to avoid errors.
-# Usage: Run in PowerShell; restore via backup XML using 2.2.3-tasks-restore.ps1.
+# Usage: Run in PowerShell; restore via backup XML using 1.2.3-tasks-restore.ps1.
 # Note: These disables are safe/optional for gaming setups without Edge/Google/.NET/UWP dependencies; tested for stability in HARPIA team setups.
+# Optional: -NoPause to skip the pause at end (for automation/UI)
+
+param([switch]$NoPause = $false)
 
 # Assures administrator privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
@@ -75,16 +78,48 @@ $taskIdentifiers = @(
 )
 
 
-# Use script folder for backup destination
-$backupDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Use Backups folder for backup destination
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDirectory = Split-Path -Parent $scriptDir
+$backupDir = Join-Path $rootDirectory "Backups"
 $timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
-$backupPath = Join-Path $backupDir ("$timestamp-tasks-backup.xml")
+$displayDate = Get-Date -Format 'MM/dd/yyyy HH:mm:ss'
+$backupFile = "$timestamp-tasks-backup.xml"
+$backupPath = Join-Path $backupDir $backupFile
+
+# Ensure Backups directory exists
+if (-not (Test-Path $backupDir)) {
+    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+}
+
+# Counters
+$disabled = 0
+$notFound = 0
+$failed = 0
+$totalTasks = $taskIdentifiers.Count
+
+# Header
+Write-Host ""
+Write-Host "Starting optimization..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[OPTIMIZE] DCS-Max: Scheduled Tasks Optimization" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "[DATE]   Optimization Date: $displayDate" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[FILE]   Backup file: $backupPath" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   Processing $totalTasks scheduled tasks" -ForegroundColor Gray
+Write-Host ""
+Write-Host "------------------------------------------------" -ForegroundColor DarkGray
 
 # Backup current states to array (for XML export)
 $backup = @()
 
-$total = $taskIdentifiers.Count
-$idx = 1
+Write-Host ""
+Write-Host "[OPTIMIZE] Disabling scheduled tasks..." -ForegroundColor Yellow
+Write-Host ""
+
 foreach ($fullId in $taskIdentifiers) {
     $lastSlashIndex = $fullId.LastIndexOf('\')
     $taskPath = if ($lastSlashIndex -ge 0) { $fullId.Substring(0, $lastSlashIndex + 1) } else { '\' }
@@ -95,25 +130,52 @@ foreach ($fullId in $taskIdentifiers) {
         $taskObj = Get-ScheduledTask -TaskPath $taskPath -TaskName $taskName -ErrorAction Stop
         $backup += $taskObj
     } catch {
-        Write-Host ("[{0}/{1}] Not found: {2}" -f $idx, $total, $fullId) -ForegroundColor Yellow
+        Write-Host "[SKIP]   $taskName (not found)" -ForegroundColor DarkGray
+        $notFound++
+        continue
     }
 
     if ($taskObj) {
         try {
             Disable-ScheduledTask -TaskPath $taskPath -TaskName $taskName -ErrorAction Stop | Out-Null
-            Write-Host ("[{0}/{1}] Disabled: {2}" -f $idx, $total, $fullId) -ForegroundColor Green
+            Write-Host "[OK]     $taskName -> Disabled" -ForegroundColor Green
+            $disabled++
         } catch {
-            Write-Host ("[{0}/{1}] Failed: {2} - $($_.Exception.Message)" -f $idx, $total, $fullId) -ForegroundColor Red
+            $errMsg = $_.Exception.Message.Trim()
+            Write-Host "[FAIL]   $taskName - $errMsg" -ForegroundColor Red
+            $failed++
         }
     }
-    $idx++
 }
 
 # Save backup to XML (for compatibility with restore script)
-$backup | Export-Clixml $backupPath
+if ($backup.Count -gt 0) {
+    $backup | Export-Clixml $backupPath
+    Write-Host ""
+    Write-Host "[OK]     Backup saved with $($backup.Count) tasks" -ForegroundColor Green
+}
 
-Write-Host "`nBackup saved to: $(Split-Path $backupPath -Leaf)" -ForegroundColor Green
-Write-Host "Location: $backupDir" -ForegroundColor Green
-Write-Host "Optimizations applied; reboot recommended for full effect in DCS sessions." -ForegroundColor White
-Write-Host "Restore using 2.2.3-tasks-restore.ps1." -ForegroundColor White
-Pause
+# Summary
+Write-Host ""
+Write-Host "================================================" -ForegroundColor DarkGray
+Write-Host "[SUMMARY] Optimization Summary:" -ForegroundColor Cyan
+Write-Host "[OK]     Disabled: $disabled" -ForegroundColor Green
+Write-Host "[SKIP]   Not found: $notFound" -ForegroundColor DarkGray
+Write-Host "[FAIL]   Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "DarkGray" })
+Write-Host ""
+Write-Host "[INFO]   Restart your PC for all changes to take effect." -ForegroundColor Gray
+Write-Host ""
+Write-Host "[INFO]   To restore, run:" -ForegroundColor Gray
+Write-Host "         .\1-Backup-Restore\1.2.3-tasks-restore.ps1 -XmlFile `"$backupFile`"" -ForegroundColor Gray
+Write-Host ""
+Write-Host "[OK]     Scheduled tasks optimization completed!" -ForegroundColor Green
+Write-Host ""
+
+if ($failed -eq 0) {
+    Write-Host "[SUCCESS] Optimization completed successfully!" -ForegroundColor Green
+} else {
+    Write-Host "[WARN] Optimization completed with $failed errors" -ForegroundColor Yellow
+}
+Write-Host ""
+
+if (-not $NoPause) { Pause }
