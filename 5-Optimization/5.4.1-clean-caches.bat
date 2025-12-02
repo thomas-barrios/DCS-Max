@@ -44,6 +44,19 @@ if exist "%USERPROFILE%\Saved Games\DCS\Temp\" (
 )
 
 echo.
+echo Cleaning DCS shader caches...
+for %%D in (DCS DCS.openbeta) do (
+    if exist "%USERPROFILE%\Saved Games\%%D\fxo\" (
+        echo Cleaning %%D fxo folder...
+        rmdir /s /q "%USERPROFILE%\Saved Games\%%D\fxo" 2>nul
+    )
+    if exist "%USERPROFILE%\Saved Games\%%D\metashaders2\" (
+        echo Cleaning %%D metashaders2 folder...
+        rmdir /s /q "%USERPROFILE%\Saved Games\%%D\metashaders2" 2>nul
+    )
+)
+
+echo.
 echo Cache cleaning completed!
 echo Please restart your computer for full effect.
 echo.

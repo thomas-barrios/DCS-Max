@@ -8,7 +8,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Download
+  Download,
+  Settings
 } from 'lucide-react';
 
 function Dashboard({ systemInfo, isAdmin, onNavigate }) {
@@ -53,6 +54,14 @@ function Dashboard({ systemInfo, isAdmin, onNavigate }) {
       action: 'logs',
       tab: 'logs',
       color: 'yellow'
+    },
+    {
+      title: 'Settings',
+      description: 'Configure application paths and preferences',
+      icon: Settings,
+      action: 'settings',
+      tab: 'settings',
+      color: 'slate'
     }
   ];
 

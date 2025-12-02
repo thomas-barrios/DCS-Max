@@ -10,7 +10,8 @@ import {
   Calendar,
   Play,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 
 // Strip ANSI escape codes from PowerShell output
@@ -29,6 +30,12 @@ function BackupRestore() {
   const [output, setOutput] = useState('');
   const [creatingRestorePoint, setCreatingRestorePoint] = useState(false);
   const outputRef = useRef(null);
+  const [showTip, setShowTip] = useState(() => {
+    const globalSetting = localStorage.getItem('dcsmax-show-tips');
+    if (globalSetting === 'false') return false;
+    const localSetting = localStorage.getItem('dcsmax-tip-backup');
+    return localSetting === null ? true : localSetting === 'true';
+  });
   
   const [selectedDcsBackups, setSelectedDcsBackups] = useState({
     dcs: true,
@@ -46,6 +53,24 @@ function BackupRestore() {
 
   useEffect(() => {
     loadBackups();
+    
+    // Listen for storage changes (when tips setting is changed in Settings)
+    const handleStorage = (e) => {
+      if (e.key === 'dcsmax-show-tips') {
+        if (e.newValue === 'true') {
+          // When globally enabled, check local setting
+          const localSetting = localStorage.getItem('dcsmax-tip-backup');
+          setShowTip(localSetting !== 'false');
+        } else {
+          setShowTip(false);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const createRestorePoint = async () => {
@@ -255,14 +280,26 @@ function BackupRestore() {
               <h2 className="text-2xl font-bold text-white mb-6">Create Backup</h2>
 
               {/* Warning Banner */}
-              <div className="bg-warning-500/20 border border-warning-500/50 rounded-lg p-4 mb-6">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 text-warning-500 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-warning-200">
-                    <strong>Tip:</strong> Create a Windows restore point before making system changes.
+              {showTip && (
+                <div className="bg-warning-500/20 border border-warning-500/50 rounded-lg p-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-warning-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 text-sm text-warning-200">
+                      <strong>Tip:</strong> Create a Windows restore point before making system changes.
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowTip(false);
+                        localStorage.setItem('dcsmax-tip-backup', 'false');
+                      }}
+                      className="text-warning-500/60 hover:text-warning-500 transition-colors"
+                      title="Dismiss tip"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Create Restore Point Button */}
               <button

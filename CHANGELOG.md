@@ -7,6 +7,35 @@ All notable changes to the DCS-Max project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-12-02 - "Viper" Release Cleanup
+
+### 🧹 Cleanup & Release Preparation
+
+Housekeeping release to clean up the project structure and prepare for distribution.
+
+### ✨ Added
+- **Release Builder Script** (`create-release.ps1`) - Automated release packaging
+  - Creates clean ZIP with only user-needed files
+  - Outputs to `DCS-Max-Releases/` folder (outside project)
+  - Excludes dev files, node_modules, source code
+
+### 🔄 Changed
+- **Renamed `Assets/` to `lib/`** - Industry-standard naming for shared utilities
+
+### 🗑️ Removed
+- `sample-ini-reader.ps1` - Obsolete prototype code
+- `DCS-Max.sln` - Unused Visual Studio solution file
+- `4-Performance-Testing/_FUTURE_4.1.4-checkpoint.txt` - Empty placeholder file
+
+### 📦 Release Package Contents
+- Compiled UI app (~1.7 MB)
+- All PowerShell optimization scripts
+- Benchmark missions
+- Documentation and guides
+- **Total: ~26 MB zipped**
+
+---
+
 ## [1.2.0] - 2025-12-01 - "Viper" UI Release
 
 ### 🎉 Major Feature Release

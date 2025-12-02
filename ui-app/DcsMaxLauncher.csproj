@@ -2,9 +2,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <AssemblyName>DCS-Max</AssemblyName>
     <Product>DCS-Max</Product>
     <Company>Thomas Barrios</Company>

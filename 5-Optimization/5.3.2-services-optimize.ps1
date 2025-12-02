@@ -17,109 +17,127 @@ try {
     # Ignore - policy may already be set
 }
 
+# Define paths
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDirectory = Split-Path -Parent $scriptDir
+
+# Load config parser and get optimization settings
+$configParserPath = Join-Path $rootDirectory "Assets\config-parser.ps1"
+if (Test-Path $configParserPath) {
+    . $configParserPath
+    $optimizationConfig = Get-OptimizationConfig
+} else {
+    $optimizationConfig = @{}
+}
+
+# Helper function to check if optimization is enabled
+function Test-OptEnabled {
+    param([string]$Id)
+    if ($optimizationConfig.Count -eq 0) { return $true }
+    if (-not $optimizationConfig.ContainsKey($Id)) { return $true }
+    return $optimizationConfig[$Id]
+}
 
 $servicesToModify = @(
     # Telemetry & Diagnostics
-    @{Name="DiagTrack"; StartupType="Disabled"; Comment="Telemetry: No impact on gaming, reduces CPU/network"},
-    @{Name="DPS"; StartupType="Disabled"; Comment="Diagnostics: Resource-intensive scanning during gameplay"},
-    @{Name="WdiServiceHost"; StartupType="Disabled"; Comment="Diagnostics: Background tasks cause micro-stutters"},
-    @{Name="WdiSystemHost"; StartupType="Disabled"; Comment="Diagnostics: Unnecessary CPU overhead"},
+    @{Id="S001"; Name="DiagTrack"; StartupType="Disabled"; Comment="Telemetry: No impact on gaming, reduces CPU/network"},
+    @{Id="S002"; Name="DPS"; StartupType="Disabled"; Comment="Diagnostics: Resource-intensive scanning during gameplay"},
+    @{Id="S003"; Name="WdiServiceHost"; StartupType="Disabled"; Comment="Diagnostics: Background tasks cause micro-stutters"},
+    @{Id="S004"; Name="WdiSystemHost"; StartupType="Disabled"; Comment="Diagnostics: Unnecessary CPU overhead"},
 
     # Windows Updates
-    @{Name="UsoSvc"; StartupType="Disabled"; Comment="Updates: Prevents background updates during gameplay"},
-    @{Name="TrustedInstaller"; StartupType="Disabled"; Comment="Updates: Avoids update triggers causing stutters"},
-    @{Name="WaaSMedicSvc"; StartupType="Disabled"; Comment="Updates: Redundant repair service"},
+    @{Id="S005"; Name="UsoSvc"; StartupType="Disabled"; Comment="Updates: Prevents background updates during gameplay"},
+    @{Id="S006"; Name="TrustedInstaller"; StartupType="Disabled"; Comment="Updates: Avoids update triggers causing stutters"},
+    @{Id="S007"; Name="WaaSMedicSvc"; StartupType="Disabled"; Comment="Updates: Redundant repair service"},
 
     # Cloud & Microsoft Services
-    @{Name="wlidsvc"; StartupType="Disabled"; Comment="MS Account: Local account used, no cloud sync needed"},
-    @{Name="WalletService"; StartupType="Disabled"; Comment="Wallet: Irrelevant for gaming"},
-    @{Name="XboxGameBar"; StartupType="Disabled"; Comment="Xbox Game Bar: From WindowsSettings section - disable to free CPU/GPU"},
-    @{Name="BackgroundApps"; StartupType="Disabled"; Comment="Background Apps: From WindowsSettings section - globally disable to cut resource spikes"},
+    @{Id="S008"; Name="wlidsvc"; StartupType="Disabled"; Comment="MS Account: Local account used, no cloud sync needed"},
+    @{Id="S009"; Name="WalletService"; StartupType="Disabled"; Comment="Wallet: Irrelevant for gaming"},
+    @{Id="S010"; Name="XboxGameBar"; StartupType="Disabled"; Comment="Xbox Game Bar: From WindowsSettings section - disable to free CPU/GPU"},
+    @{Id="S011"; Name="BackgroundApps"; StartupType="Disabled"; Comment="Background Apps: From WindowsSettings section - globally disable to cut resource spikes"},
 
     # Printer Services
-    @{Name="Spooler"; StartupType="Disabled"; Comment="Printing: No printing needed during gaming"},
-    @{Name="PrintNotify"; StartupType="Disabled"; Comment="Printing: Unnecessary notifications"},
-    @{Name="PrintWorkflowUserSvc_50b27"; StartupType="Disabled"; Comment="Printing: Workflow not needed"},
+    @{Id="S012"; Name="Spooler"; StartupType="Disabled"; Comment="Printing: No printing needed during gaming"},
+    @{Id="S013"; Name="PrintNotify"; StartupType="Disabled"; Comment="Printing: Unnecessary notifications"},
+    @{Id="S014"; Name="PrintWorkflowUserSvc_50b27"; StartupType="Disabled"; Comment="Printing: Workflow not needed"},
 
     # Fax & Legacy
-    @{Name="Fax"; StartupType="Disabled"; Comment="Fax: Obsolete for gaming"},
+    @{Id="S015"; Name="Fax"; StartupType="Disabled"; Comment="Fax: Obsolete for gaming"},
 
     # Search & Indexing
-    @{Name="WSearch"; StartupType="Disabled"; Comment="Search: Heavy disk I/O competes with DCS"},
-    @{Name="Indexing"; StartupType="Disabled"; Comment="Indexing: From WindowsSettings section - disable on game drives to minimize disk I/O"},
+    @{Id="S016"; Name="WSearch"; StartupType="Disabled"; Comment="Search: Heavy disk I/O competes with DCS"},
+    @{Id="S017"; Name="Indexing"; StartupType="Disabled"; Comment="Indexing: From WindowsSettings section - disable on game drives to minimize disk I/O"},
 
     # Media & Entertainment
-    @{Name="MapsBroker"; StartupType="Disabled"; Comment="Maps: Irrelevant for gaming"},
-    @{Name="BcastDVRUserService_50b27"; StartupType="Disabled"; Comment="GameDVR: Causes frame drops in VR"},
+    @{Id="S018"; Name="MapsBroker"; StartupType="Disabled"; Comment="Maps: Irrelevant for gaming"},
+    @{Id="S019"; Name="BcastDVRUserService_50b27"; StartupType="Disabled"; Comment="GameDVR: Causes frame drops in VR"},
 
     # Hardware Support
-    @{Name="RtkUWPService"; StartupType="Disabled"; Comment="Realtek: Conflicts with gaming audio stack"},
-    @{Name="AmdPmuService"; StartupType="Disabled"; Comment="AMD: DCS uses own optimization"},
-    @{Name="AmdAcpSvc"; StartupType="Disabled"; Comment="AMD: Compatibility database not needed"},
-    @{Name="AmdPPService"; StartupType="Disabled"; Comment="AMD: Manual power settings better for DCS"},
+    @{Id="S020"; Name="RtkUWPService"; StartupType="Disabled"; Comment="Realtek: Conflicts with gaming audio stack"},
+    @{Id="S021"; Name="AmdPmuService"; StartupType="Disabled"; Comment="AMD: DCS uses own optimization"},
+    @{Id="S022"; Name="AmdAcpSvc"; StartupType="Disabled"; Comment="AMD: Compatibility database not needed"},
+    @{Id="S023"; Name="AmdPPService"; StartupType="Disabled"; Comment="AMD: Manual power settings better for DCS"},
 
     # Remote Access
-    @{Name="RemoteRegistry"; StartupType="Disabled"; Comment="Remote: Security risk, not needed"},
-    @{Name="TermService"; StartupType="Disabled"; Comment="RDP: Unneeded for local gaming"},
+    @{Id="S024"; Name="RemoteRegistry"; StartupType="Disabled"; Comment="Remote: Security risk, not needed"},
+    @{Id="S025"; Name="TermService"; StartupType="Disabled"; Comment="RDP: Unneeded for local gaming"},
 
     # Backup & Sync
-    @{Name="fhsvc"; StartupType="Disabled"; Comment="File History: Heavy disk I/O during gameplay"},
-    @{Name="WorkFolders"; StartupType="Disabled"; Comment="Work Folders: Enterprise sync, not needed"},
+    @{Id="S026"; Name="fhsvc"; StartupType="Disabled"; Comment="File History: Heavy disk I/O during gameplay"},
+    @{Id="S027"; Name="WorkFolders"; StartupType="Disabled"; Comment="Work Folders: Enterprise sync, not needed"},
 
     # Network Discovery
-    @{Name="SSDPSRV"; StartupType="Disabled"; Comment="Network: Cuts broadcast traffic"},
-    @{Name="UPnPHost"; StartupType="Disabled"; Comment="Network: No UPnP hosting needed"},
-    @{Name="FDResPub"; StartupType="Disabled"; Comment="Network: No device discovery needed"},
+    @{Id="S028"; Name="SSDPSRV"; StartupType="Disabled"; Comment="Network: Cuts broadcast traffic"},
+    @{Id="S029"; Name="UPnPHost"; StartupType="Disabled"; Comment="Network: No UPnP hosting needed"},
+    @{Id="S030"; Name="FDResPub"; StartupType="Disabled"; Comment="Network: No device discovery needed"},
 
     # Location & Sensors
-    @{Name="lfsvc"; StartupType="Disabled"; Comment="Geolocation: Not used, avoids checks"},
-    @{Name="SensorService"; StartupType="Disabled"; Comment="Sensors: No sensors in desktop"},
-    @{Name="SensrSvc"; StartupType="Disabled"; Comment="Sensors: No sensor monitoring needed"},
-    @{Name="SensorDataService"; StartupType="Disabled"; Comment="Sensors: No sensor data needed"},
+    @{Id="S031"; Name="lfsvc"; StartupType="Disabled"; Comment="Geolocation: Not used, avoids checks"},
+    @{Id="S032"; Name="SensorService"; StartupType="Disabled"; Comment="Sensors: No sensors in desktop"},
+    @{Id="S033"; Name="SensrSvc"; StartupType="Disabled"; Comment="Sensors: No sensor monitoring needed"},
+    @{Id="S034"; Name="SensorDataService"; StartupType="Disabled"; Comment="Sensors: No sensor data needed"},
 
     # Xbox Services
-    @{Name="XblAuthManager"; StartupType="Disabled"; Comment="Xbox: Not used by DCS"},
-    @{Name="XblGameSave"; StartupType="Disabled"; Comment="Xbox: No cloud saves needed"},
-    @{Name="XboxNetApiSvc"; StartupType="Disabled"; Comment="Xbox: Reduces network overhead"},
-    @{Name="XboxGipSvc"; StartupType="Disabled"; Comment="Xbox: No Xbox accessories used"},
+    @{Id="S035"; Name="XblAuthManager"; StartupType="Disabled"; Comment="Xbox: Not used by DCS"},
+    @{Id="S036"; Name="XblGameSave"; StartupType="Disabled"; Comment="Xbox: No cloud saves needed"},
+    @{Id="S037"; Name="XboxNetApiSvc"; StartupType="Disabled"; Comment="Xbox: Reduces network overhead"},
+    @{Id="S038"; Name="XboxGipSvc"; StartupType="Disabled"; Comment="Xbox: No Xbox accessories used"},
 
     # Parental Controls
-    @{Name="WPCSvc"; StartupType="Disabled"; Comment="Parental: Not needed for gaming"},
+    @{Id="S039"; Name="WPCSvc"; StartupType="Disabled"; Comment="Parental: Not needed for gaming"},
 
     # Telephony
-    @{Name="PhoneSvc"; StartupType="Disabled"; Comment="Telephony: Desktop without telephony"},
-    @{Name="MessagingService_50b27"; StartupType="Disabled"; Comment="Messaging: Not used in gaming"},
+    @{Id="S040"; Name="PhoneSvc"; StartupType="Disabled"; Comment="Telephony: Desktop without telephony"},
+    @{Id="S041"; Name="MessagingService_50b27"; StartupType="Disabled"; Comment="Messaging: Not used in gaming"},
 
     # Insider Program
-    @{Name="wisvc"; StartupType="Disabled"; Comment="Insider: Not needed for stable rig"},
+    @{Id="S042"; Name="wisvc"; StartupType="Disabled"; Comment="Insider: Not needed for stable rig"},
 
     # WebDAV
-    @{Name="WebClient"; StartupType="Disabled"; Comment="WebDAV: Avoids reconnects"},
+    @{Id="S043"; Name="WebClient"; StartupType="Disabled"; Comment="WebDAV: Avoids reconnects"},
 
     # Imaging
-    @{Name="stisvc"; StartupType="Disabled"; Comment="WIA: No scanning needed"},
+    @{Id="S044"; Name="stisvc"; StartupType="Disabled"; Comment="WIA: No scanning needed"},
 
     # Third-Party
-    @{Name="GoogleUpdaterService142.0.7416.0"; StartupType="Disabled"; Comment="Google: Not needed for gaming"},
-    @{Name="GoogleUpdaterInternalService142.0.7416.0"; StartupType="Disabled"; Comment="Google: Not needed for gaming"},
-    @{Name="AsusUpdateCheck"; StartupType="Disabled"; Comment="ASUS: Manual updates sufficient"},
+    @{Id="S045"; Name="GoogleUpdaterService142.0.7416.0"; StartupType="Disabled"; Comment="Google: Not needed for gaming"},
+    @{Id="S046"; Name="GoogleUpdaterInternalService142.0.7416.0"; StartupType="Disabled"; Comment="Google: Not needed for gaming"},
+    @{Id="S047"; Name="AsusUpdateCheck"; StartupType="Disabled"; Comment="ASUS: Manual updates sufficient"},
 
     # File Tracking
-    @{Name="TrkWks"; StartupType="Disabled"; Comment="File Tracking: No benefit for gaming"},
+    @{Id="S048"; Name="TrkWks"; StartupType="Disabled"; Comment="File Tracking: No benefit for gaming"},
 
     # Retail Demo
-    @{Name="RetailDemo"; StartupType="Disabled"; Comment="Retail: Consumer feature, not needed"},
+    @{Id="S049"; Name="RetailDemo"; StartupType="Disabled"; Comment="Retail: Consumer feature, not needed"},
 
     # Client License Service
-    @{Name="ClipSVC"; StartupType="Disabled"; Comment="Client License Service: From WindowsServices section - no Store apps, saves 50-100MB RAM"},
+    @{Id="S050"; Name="ClipSVC"; StartupType="Disabled"; Comment="Client License Service: From WindowsServices section - no Store apps, saves 50-100MB RAM"},
 
     # Power Management
-    @{Name="Power"; StartupType="Disabled"; Comment="Power: Known to cause VR stutters due to dynamic power state changes"}
+    @{Id="S051"; Name="Power"; StartupType="Disabled"; Comment="Power: Known to cause VR stutters due to dynamic power state changes"}
 )
 
 # Paths
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$rootDirectory = Split-Path -Parent $scriptDir
 $backupDir = Join-Path $rootDirectory "Backups"
 $timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
 $displayDate = Get-Date -Format 'MM/dd/yyyy HH:mm:ss'
@@ -129,6 +147,7 @@ $backupPath = Join-Path $backupDir $backupFile
 # Counters
 $disabled = 0
 $notFound = 0
+$skipped = 0
 $failed = 0
 $totalServices = $servicesToModify.Count
 
@@ -146,7 +165,13 @@ Write-Host "================================================" -ForegroundColor D
 Write-Host ""
 Write-Host "[DATE]   Optimization Date: $displayDate" -ForegroundColor Gray
 Write-Host ""
-Write-Host "[INFO]   Processing $totalServices services for optimization" -ForegroundColor Gray
+
+# Count enabled optimizations
+$enabledCount = ($servicesToModify | Where-Object { Test-OptEnabled $_.Id }).Count
+Write-Host "[INFO]   Processing $enabledCount of $totalServices services for optimization" -ForegroundColor Gray
+if ($enabledCount -lt $totalServices) {
+    Write-Host "[INFO]   ($($totalServices - $enabledCount) services disabled in config)" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "------------------------------------------------" -ForegroundColor DarkGray
 
@@ -176,6 +201,13 @@ Write-Host "[OPTIMIZE] Disabling services..." -ForegroundColor Yellow
 Write-Host ""
 
 foreach ($service in $servicesToModify) {
+    # Check if this optimization is enabled in config
+    if (-not (Test-OptEnabled $service.Id)) {
+        Write-Host "[SKIP]   $($service.Name) (disabled in config)" -ForegroundColor DarkGray
+        $skipped++
+        continue
+    }
+
     $svc = Get-Service -Name $service.Name -ErrorAction SilentlyContinue
     if ($svc) {
         try {
@@ -202,6 +234,7 @@ Write-Host "================================================" -ForegroundColor D
 Write-Host "[SUMMARY] Optimization Summary:" -ForegroundColor Cyan
 Write-Host "[OK]     Disabled: $disabled" -ForegroundColor Green
 Write-Host "[SKIP]   Not found: $notFound" -ForegroundColor DarkGray
+Write-Host "[SKIP]   Disabled in config: $skipped" -ForegroundColor DarkGray
 Write-Host "[FAIL]   Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "DarkGray" })
 Write-Host ""
 Write-Host "[INFO]   $notFound services were not found on this system." -ForegroundColor Gray

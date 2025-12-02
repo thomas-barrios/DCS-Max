@@ -20,8 +20,26 @@ $backupDir = Join-Path $rootDirectory "Backups"
 $timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
 $displayDate = Get-Date -Format 'MM/dd/yyyy HH:mm:ss'
 
+# Load config parser and get optimization settings
+$configParserPath = Join-Path $rootDirectory "Assets\config-parser.ps1"
+if (Test-Path $configParserPath) {
+    . $configParserPath
+    $optimizationConfig = Get-OptimizationConfig
+} else {
+    $optimizationConfig = @{}
+}
+
+# Helper function to check if optimization is enabled
+function Test-OptEnabled {
+    param([string]$Id)
+    if ($optimizationConfig.Count -eq 0) { return $true }
+    if (-not $optimizationConfig.ContainsKey($Id)) { return $true }
+    return $optimizationConfig[$Id]
+}
+
 # Counters
 $optimized = 0
+$skipped = 0
 $failed = 0
 
 # Ensure Backups directory exists
@@ -30,8 +48,10 @@ if (-not (Test-Path $backupDir)) {
 }
 
 # Registry optimizations to apply (matches the .reg file)
+# Each optimization has an Id for config-based filtering
 $registryOptimizations = @(
     @{
+        Id = "R001"
         Key = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
         Name = "Attributes"
         Value = 0
@@ -40,6 +60,7 @@ $registryOptimizations = @(
         DisplayValue = "Disabled (unpark all cores)"
     },
     @{
+        Id = "R002"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DCS.exe"
         Name = "CpuPriorityClass"
         Value = 3
@@ -48,6 +69,7 @@ $registryOptimizations = @(
         DisplayValue = "High (3)"
     },
     @{
+        Id = "R003"
         Key = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
         Name = "PowerThrottlingOff"
         Value = 1
@@ -56,6 +78,7 @@ $registryOptimizations = @(
         DisplayValue = "Disabled"
     },
     @{
+        Id = "R004"
         Key = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR"
         Name = "AppCaptureEnabled"
         Value = 0
@@ -64,6 +87,7 @@ $registryOptimizations = @(
         DisplayValue = "Disabled"
     },
     @{
+        Id = "R005"
         Key = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Direct3D"
         Name = "MaxPreRenderedFrames"
         Value = 1
@@ -72,6 +96,7 @@ $registryOptimizations = @(
         DisplayValue = "1 (minimum latency)"
     },
     @{
+        Id = "R006"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
         Name = "NetworkThrottlingIndex"
         Value = 0xffffffff
@@ -80,6 +105,7 @@ $registryOptimizations = @(
         DisplayValue = "Disabled (0xFFFFFFFF)"
     },
     @{
+        Id = "R007"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
         Name = "SystemResponsiveness"
         Value = 10
@@ -88,6 +114,7 @@ $registryOptimizations = @(
         DisplayValue = "10% (more CPU for games)"
     },
     @{
+        Id = "R008"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "Affinity"
         Value = 0x0000000f
@@ -96,6 +123,7 @@ $registryOptimizations = @(
         DisplayValue = "First 4 cores (0x0F)"
     },
     @{
+        Id = "R009"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "BackgroundOnly"
         Value = 0
@@ -104,6 +132,7 @@ $registryOptimizations = @(
         DisplayValue = "Disabled"
     },
     @{
+        Id = "R010"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "GPU Priority"
         Value = 14
@@ -112,6 +141,7 @@ $registryOptimizations = @(
         DisplayValue = "14 (high)"
     },
     @{
+        Id = "R011"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "Priority"
         Value = 6
@@ -120,6 +150,7 @@ $registryOptimizations = @(
         DisplayValue = "6 (highest)"
     },
     @{
+        Id = "R012"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "Scheduling Category"
         Value = "High"
@@ -128,6 +159,7 @@ $registryOptimizations = @(
         DisplayValue = "High"
     },
     @{
+        Id = "R013"
         Key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         Name = "SFIO Priority"
         Value = "High"
@@ -136,6 +168,7 @@ $registryOptimizations = @(
         DisplayValue = "High"
     },
     @{
+        Id = "R014"
         Key = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
         Name = "Win32PrioritySeparation"
         Value = 0x1a
@@ -154,7 +187,14 @@ Write-Host "================================================" -ForegroundColor D
 Write-Host ""
 Write-Host "[DATE]   Optimization Date: $displayDate" -ForegroundColor Gray
 Write-Host ""
-Write-Host "[INFO]   Applying $($registryOptimizations.Count) registry optimizations" -ForegroundColor Gray
+
+# Count enabled optimizations
+$enabledCount = ($registryOptimizations | Where-Object { Test-OptEnabled $_.Id }).Count
+$totalCount = $registryOptimizations.Count
+Write-Host "[INFO]   Applying $enabledCount of $totalCount registry optimizations" -ForegroundColor Gray
+if ($enabledCount -lt $totalCount) {
+    Write-Host "[INFO]   ($($totalCount - $enabledCount) optimizations disabled in config)" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "------------------------------------------------" -ForegroundColor DarkGray
 
@@ -182,8 +222,15 @@ Write-Host ""
 Write-Host "[OPTIMIZE] Applying registry optimizations..." -ForegroundColor Yellow
 Write-Host ""
 
-# Apply each optimization
+# Apply each optimization (respecting config)
 foreach ($opt in $registryOptimizations) {
+    # Check if this optimization is enabled in config
+    if (-not (Test-OptEnabled $opt.Id)) {
+        Write-Host "[SKIP]   $($opt.Description) (disabled in config)" -ForegroundColor DarkGray
+        $skipped++
+        continue
+    }
+    
     try {
         # Ensure key exists
         if (-not (Test-Path $opt.Key)) {
@@ -211,6 +258,7 @@ Write-Host ""
 Write-Host "================================================" -ForegroundColor DarkGray
 Write-Host "[SUMMARY] Optimization Summary:" -ForegroundColor Cyan
 Write-Host "[OK]     Optimized: $optimized" -ForegroundColor Green
+Write-Host "[SKIP]   Skipped: $skipped" -ForegroundColor DarkGray
 Write-Host "[FAIL]   Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "DarkGray" })
 Write-Host ""
 Write-Host "[INFO]   Restart your PC for all changes to take effect." -ForegroundColor Gray

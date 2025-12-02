@@ -6,17 +6,20 @@ import {
   CheckCircle,
   XCircle,
   Loader,
-  RefreshCw
+  RefreshCw,
+  Lightbulb,
+  Scan
 } from 'lucide-react';
 
 function SettingsPanel() {
   const [settings, setSettings] = useState({
-    dcsPath: 'C:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe',
-    savedGamesPath: `${process.env.USERPROFILE || 'C:\\Users\\YourName'}\\Saved Games\\DCS`,
-    capframexPath: 'C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe',
-    autoHotkeyPath: 'C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey.exe',
-    pimaxPath: 'C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe',
-    benchmarkMissionPath: 'benchmark-missions\\PB-syria-telaviv-09air-20ground-scattered2-sp-noserver-500sec.miz',
+    dcsPath: '',
+    savedGamesPath: '',
+    capframexPath: '',
+    autoHotkeyPath: '',
+    pimaxPath: '',
+    notepadppPath: '',
+    benchmarkMissionPath: '',
     createRestorePoint: true,
     autoBackup: true,
     logLevel: 'info'
@@ -24,7 +27,13 @@ function SettingsPanel() {
 
   const [pathStatus, setPathStatus] = useState({});
   const [checking, setChecking] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [projectRoot, setProjectRoot] = useState('');
+  const [showTips, setShowTips] = useState(() => {
+    const saved = localStorage.getItem('dcsmax-show-tips');
+    return saved === null ? true : saved === 'true';
+  });
+  const [pathSources, setPathSources] = useState({});
 
   const pathFields = [
     { key: 'dcsPath', label: 'DCS World Executable', required: true },
@@ -32,34 +41,78 @@ function SettingsPanel() {
     { key: 'capframexPath', label: 'CapFrameX Executable', required: false },
     { key: 'autoHotkeyPath', label: 'AutoHotkey v2 Executable', required: false },
     { key: 'pimaxPath', label: 'Pimax Client (VR only)', required: false },
+    { key: 'notepadppPath', label: 'Notepad++', required: false },
     { key: 'benchmarkMissionPath', label: 'Benchmark Mission File', required: false, isRelative: true }
   ];
 
   useEffect(() => {
-    // Get project root first, then verify paths
+    // Initialize: get project root, load paths from INI, detect as fallback
     const init = async () => {
+      setLoading(true);
       let root = '';
+      
       try {
-        const result = await window.dcsMax.getProjectRoot();
-        if (result.success) {
-          root = result.path;
+        // Get project root
+        const rootResult = await window.dcsMax.getProjectRoot();
+        if (rootResult.success) {
+          root = rootResult.path;
           setProjectRoot(root);
         }
       } catch (err) {
         console.error('Failed to get project root:', err);
       }
-      // Pass root directly since state update is async
-      verifyAllPaths(root);
+
+      const newSettings = { ...settings };
+      const sources = {};
+
+      try {
+        // Try to load paths from INI first
+        const iniResult = await window.dcsMax.readSettingsPaths();
+        if (iniResult.success && iniResult.paths) {
+          for (const [key, value] of Object.entries(iniResult.paths)) {
+            if (value) {
+              newSettings[key] = value;
+              sources[key] = 'ini';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to read settings from INI:', err);
+      }
+
+      try {
+        // Detect paths for any that weren't in INI
+        const detectResult = await window.dcsMax.detectPaths();
+        if (detectResult.success && detectResult.paths) {
+          for (const [key, pathInfo] of Object.entries(detectResult.paths)) {
+            // Only use detected path if we don't have one from INI
+            if (!newSettings[key] && pathInfo.path) {
+              newSettings[key] = pathInfo.path;
+              sources[key] = pathInfo.found ? `detected (${pathInfo.source})` : 'default';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to detect paths:', err);
+      }
+
+      setSettings(newSettings);
+      setPathSources(sources);
+      setLoading(false);
+      
+      // Verify all paths
+      verifyAllPaths(root, newSettings);
     };
+    
     init();
   }, []);
 
-  const verifyAllPaths = async (root = projectRoot) => {
+  const verifyAllPaths = async (root = projectRoot, currentSettings = settings) => {
     setChecking(true);
     const status = {};
     
     for (const field of pathFields) {
-      const path = settings[field.key];
+      const path = currentSettings[field.key];
       if (path) {
         status[field.key] = await verifyPath(path, field.isFolder, field.isRelative, root);
       } else {
@@ -120,11 +173,53 @@ function SettingsPanel() {
     }
   };
 
-  const handleSave = () => {
-    // In a real implementation, this would save to a config file
-    alert('Settings saved successfully!');
+  const handleSave = async () => {
+    try {
+      // Save path settings to INI file
+      const pathsToSave = {};
+      for (const field of pathFields) {
+        if (settings[field.key]) {
+          pathsToSave[field.key] = settings[field.key];
+        }
+      }
+      
+      const result = await window.dcsMax.writeSettingsPaths(pathsToSave);
+      if (result.success) {
+        alert('Settings saved to configuration file!');
+      } else {
+        alert('Error saving settings: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Error saving settings: ' + err.message);
+    }
   };
 
+  const detectAllPaths = async () => {
+    try {
+      setLoading(true);
+      const result = await window.dcsMax.detectPaths();
+      if (result.success && result.paths) {
+        const newSettings = { ...settings };
+        const sources = { ...pathSources };
+        
+        for (const [key, pathInfo] of Object.entries(result.paths)) {
+          if (pathInfo.path) {
+            newSettings[key] = pathInfo.path;
+            sources[key] = pathInfo.found ? `detected (${pathInfo.source})` : 'default';
+          }
+        }
+        
+        setSettings(newSettings);
+        setPathSources(sources);
+        verifyAllPaths(projectRoot, newSettings);
+      }
+    } catch (err) {
+      console.error('Detection error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const browseForPath = async (settingKey) => {
     try {
       // Check if bridge is available
@@ -151,9 +246,20 @@ function SettingsPanel() {
       }
       
       if (result && result.success && result.path) {
-        setSettings(prev => ({ ...prev, [settingKey]: result.path }));
+        const newSettings = { ...settings, [settingKey]: result.path };
+        setSettings(newSettings);
+        setPathSources(prev => ({ ...prev, [settingKey]: 'user selected' }));
+        
         // Verify the newly selected path
         setTimeout(() => verifySinglePath(settingKey), 100);
+        
+        // Auto-save the path to INI
+        try {
+          const pathsToSave = { [settingKey]: result.path };
+          await window.dcsMax.writeSettingsPaths(pathsToSave);
+        } catch (saveErr) {
+          console.error('Failed to auto-save path:', saveErr);
+        }
       }
     } catch (error) {
       console.error('Browse error:', error);
@@ -161,10 +267,62 @@ function SettingsPanel() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto p-8">
         <h2 className="text-3xl font-bold text-white mb-6">Settings</h2>
+
+        {/* Display Options */}
+        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-6">
+          <h3 className="text-xl font-semibold text-white flex items-center mb-4">
+            <Lightbulb className="w-5 h-5 mr-2 text-yellow-400" />
+            Display Options
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-slate-200 font-medium">Show Tips</label>
+              <p className="text-sm text-slate-400">Display helpful tips throughout the application</p>
+            </div>
+            <button
+              onClick={() => {
+                const newValue = !showTips;
+                setShowTips(newValue);
+                localStorage.setItem('dcsmax-show-tips', String(newValue));
+                // When enabling tips globally, reset all individual tip settings
+                if (newValue) {
+                  localStorage.removeItem('dcsmax-tip-benchmarking');
+                  localStorage.removeItem('dcsmax-tip-backup');
+                  localStorage.removeItem('dcsmax-tip-optimization');
+                }
+                // Dispatch storage event for same-window updates
+                window.dispatchEvent(new StorageEvent('storage', {
+                  key: 'dcsmax-show-tips',
+                  newValue: String(newValue)
+                }));
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                showTips ? 'bg-green-600' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showTips ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
 
         {/* Paths Configuration */}
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-6">
@@ -173,14 +331,25 @@ function SettingsPanel() {
               <FolderOpen className="w-5 h-5 mr-2 text-yellow-400" />
               Application Paths
             </h3>
-            <button
-              onClick={verifyAllPaths}
-              disabled={checking}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded transition-colors text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-              <span>Verify All</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={detectAllPaths}
+                disabled={loading}
+                className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 rounded transition-colors text-sm"
+                title="Auto-detect all application paths"
+              >
+                <Scan className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />
+                <span>Detect All</span>
+              </button>
+              <button
+                onClick={() => verifyAllPaths(projectRoot, settings)}
+                disabled={checking}
+                className="flex items-center space-x-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded transition-colors text-sm"
+              >
+                <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+                <span>Verify All</span>
+              </button>
+            </div>
           </div>
           <div className="space-y-4">
             {pathFields.map((field) => (
@@ -195,6 +364,9 @@ function SettingsPanel() {
                   {pathStatus[field.key] === 'invalid' && (
                     <span className="text-xs text-red-400">Not found</span>
                   )}
+                  {pathSources[field.key] && (
+                    <span className="text-xs text-slate-500 ml-2">({pathSources[field.key]})</span>
+                  )}
                 </label>
                 <div className="flex items-center space-x-2">
                   <input
@@ -202,6 +374,7 @@ function SettingsPanel() {
                     value={settings[field.key]}
                     onChange={(e) => {
                       setSettings({ ...settings, [field.key]: e.target.value });
+                      setPathSources(prev => ({ ...prev, [field.key]: 'manual' }));
                       // Clear status when user types
                       setPathStatus(prev => ({ ...prev, [field.key]: 'unknown' }));
                     }}

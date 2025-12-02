@@ -6,26 +6,46 @@ import {
   Edit3,
   RefreshCw,
   Activity,
-  Lightbulb
+  Lightbulb,
+  X
 } from 'lucide-react';
 
 function Benchmarking() {
   const [config, setConfig] = useState(null);
+  const [configError, setConfigError] = useState(null);
   const [running, setRunning] = useState(false);
+  const [projectRoot, setProjectRoot] = useState('');
+  const [showTip, setShowTip] = useState(() => {
+    const globalSetting = localStorage.getItem('dcsmax-show-tips');
+    if (globalSetting === 'false') return false;
+    const localSetting = localStorage.getItem('dcsmax-tip-benchmarking');
+    return localSetting === null ? true : localSetting === 'true';
+  });
 
   const loadConfig = useCallback(async () => {
     try {
+      setConfigError(null);
       const result = await window.dcsMax.readIniConfig('4-Performance-Testing/4.1.1-dcs-testing-configuration.ini');
       if (result.success) {
         setConfig(result.parsed);
+      } else {
+        setConfigError(result.error || 'Failed to load config');
       }
     } catch (err) {
       console.error('Error loading config:', err);
+      setConfigError(err.message || 'Unknown error');
     }
   }, []);
 
   useEffect(() => {
     loadConfig();
+    
+    // Get project root for full path display
+    window.dcsMax.getProjectRoot().then(result => {
+      if (result.success) {
+        setProjectRoot(result.path);
+      }
+    });
     
     // Auto-refresh when window regains focus (after editing file externally)
     const handleFocus = () => {
@@ -33,8 +53,23 @@ function Benchmarking() {
     };
     window.addEventListener('focus', handleFocus);
     
+    // Listen for storage changes (when tips setting is changed in Settings)
+    const handleStorage = (e) => {
+      if (e.key === 'dcsmax-show-tips') {
+        if (e.newValue === 'true') {
+          // When globally enabled, check local setting
+          const localSetting = localStorage.getItem('dcsmax-tip-benchmarking');
+          setShowTip(localSetting !== 'false');
+        } else {
+          setShowTip(false);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorage);
     };
   }, [loadConfig]);
 
@@ -82,9 +117,19 @@ function Benchmarking() {
   };
 
   const activeTests = getActiveTests();
-  const totalCombinations = activeTests.reduce((total, test) => {
-    return total === 0 ? test.count : total * test.count;
-  }, 0);
+  const totalCombinations = activeTests.length === 0 
+    ? (config?.Configuration?.NumberOfRuns ? parseInt(config.Configuration.NumberOfRuns) : 1)
+    : activeTests.reduce((total, test) => {
+        return total === 0 ? test.count : total * test.count;
+      }, 0) * (config?.Configuration?.NumberOfRuns ? parseInt(config.Configuration.NumberOfRuns) : 1);
+
+  // Get config values for display
+  const configInfo = config?.Configuration || {};
+  const enableVR = configInfo.EnableVR === 'true';
+  const missionPath = configInfo.mission || 'benchmark-missions\\PB-syria-telaviv-09air-20ground-scattered2-sp-noserver-500sec.miz';
+  const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\${missionPath}` : `4-Performance-Testing\\${missionPath}`;
+  const recordLength = configInfo.WaitRecordLength ? (parseInt(configInfo.WaitRecordLength) / 1000) : 60;
+  const numberOfRuns = configInfo.NumberOfRuns ? parseInt(configInfo.NumberOfRuns) : 1;
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -94,30 +139,42 @@ function Benchmarking() {
           <h2 className="text-2xl font-bold text-white mb-6">DCS Benchmarking</h2>
 
           {/* Tip Box */}
-          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <Lightbulb className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-yellow-400 mb-1">Tip: Benchmark Before Optimization</h4>
-                <p className="text-sm text-slate-300">
-                  Run a benchmark first to establish a baseline, then apply optimizations and run another benchmark 
-                  to compare results in CapFrameX. This helps you measure the actual performance improvements.
-                </p>
+          {showTip && (
+            <div className="mb-6 p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Lightbulb className="w-5 h-5 text-warning-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-warning-500 mb-1">Tip: Benchmark Before Optimization</h4>
+                  <p className="text-sm text-warning-200">
+                    Run a benchmark first to establish a baseline, then apply optimizations and run another benchmark 
+                    to compare results in CapFrameX. This helps you measure the actual performance improvements.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowTip(false);
+                    localStorage.setItem('dcsmax-tip-benchmarking', 'false');
+                  }}
+                  className="text-warning-500/60 hover:text-warning-500 transition-colors"
+                  title="Dismiss tip"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-              <div className="text-slate-400 text-xs mb-1">Active Tests</div>
-              <div className="text-2xl font-bold text-white">{activeTests.length}</div>
+          {/* Debug/Error info */}
+          {configError && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+              Error loading config: {configError}
             </div>
-            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-              <div className="text-slate-400 text-xs mb-1">Total Runs</div>
-              <div className="text-2xl font-bold text-white">{totalCombinations}</div>
+          )}
+          {!config && !configError && (
+            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-blue-300 text-sm">
+              Loading configuration...
             </div>
-          </div>
+          )}
 
           {/* Control Buttons */}
           <div className="space-y-3 mb-6">
@@ -163,35 +220,74 @@ function Benchmarking() {
             )}
           </div>
 
-          {/* Active Tests List */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-3">Active Test Settings</h3>
-            {activeTests.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No tests configured</p>
-                <p className="text-xs">Edit the configuration to add tests</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {activeTests.map((test) => (
-                  <div
-                    key={test.setting}
-                    className="bg-slate-800 rounded-lg p-3 border border-slate-700"
-                  >
-                    <div className="font-semibold text-white text-sm mb-1">
-                      {test.setting}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {test.values.join(', ')}
-                    </div>
-                    <div className="text-xs text-blue-400 mt-1">
-                      {test.count} variations
-                    </div>
+          {/* Test Configuration Group */}
+          <div className="bg-slate-800 rounded-lg border border-slate-700 mb-6 overflow-hidden">
+            <div className="px-4 py-3 bg-slate-700/50 border-b border-slate-700">
+              <h3 className="text-lg font-semibold text-white">Test Configuration</h3>
+            </div>
+            
+            <div className="p-4">
+              {/* Top Stats Row - 3 columns */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-white">{activeTests.length}</div>
+                  <div className="text-slate-400 text-xs">Active Tests</div>
+                </div>
+                <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-white">{totalCombinations}</div>
+                  <div className="text-slate-400 text-xs">Total Runs</div>
+                </div>
+                <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div className="text-slate-400 text-xs mb-1">VR Mode</div>
+                  <div className={`text-lg font-semibold ${enableVR ? 'text-green-400' : 'text-slate-300'}`}>
+                    {enableVR ? 'Enabled' : 'Disabled'}
                   </div>
-                ))}
+                </div>
               </div>
-            )}
+
+              {/* Second Stats Row - 2 columns */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div className="text-slate-400 text-xs mb-1">Record Length</div>
+                  <div className="text-lg font-semibold text-white">{recordLength}s</div>
+                </div>
+                <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                  <div className="text-slate-400 text-xs mb-1">Runs per Test</div>
+                  <div className="text-lg font-semibold text-white">{numberOfRuns}</div>
+                </div>
+              </div>
+
+              {/* Mission */}
+              <div className="mb-4">
+                <div className="text-slate-400 text-xs mb-2">Mission</div>
+                <div className="bg-slate-700/30 rounded p-2 border border-slate-600/50">
+                  <div className="text-sm text-slate-300 break-all font-mono">{mission}</div>
+                </div>
+              </div>
+
+              {/* Test Variations */}
+              <div>
+                <div className="text-slate-400 text-xs mb-2">Test Variations</div>
+                <div className="border-t border-slate-600/50">
+                  {activeTests.length === 0 ? (
+                    <div className="py-4 text-center text-slate-500 text-sm">
+                      <Settings className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                      Baseline Mode - No test variations configured
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-700/50">
+                      {activeTests.map((test) => (
+                        <div key={test.setting} className="flex items-center justify-between py-2 px-1">
+                          <span className="text-white font-medium text-sm">{test.setting}</span>
+                          <span className="text-blue-400 text-sm flex-1 text-center px-2">{test.values.join(', ')}</span>
+                          <span className="text-slate-500 text-xs">{test.count} value{test.count > 1 ? 's' : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Info */}
@@ -203,6 +299,7 @@ function Benchmarking() {
             <ul className="text-sm text-slate-300 space-y-1">
               <li>• AutoHotkey v2.0 must be installed</li>
               <li>• CapFrameX must be installed</li>
+              <li>• Notepad++ must be installed</li>
               <li>• Test configuration is set up</li>
             </ul>
           </div>

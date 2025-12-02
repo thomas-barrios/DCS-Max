@@ -10,9 +10,19 @@ using Newtonsoft.Json.Linq;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Win32;
 
 namespace DcsMaxLauncher
 {
+    // Helper class for backup listing
+    public class BackupInfo
+    {
+        public string name { get; set; }
+        public string type { get; set; }
+        public DateTime date { get; set; }
+        public long size { get; set; }
+    }
+
     public class MainForm : Form
     {
         private WebView2 webView;
@@ -28,13 +38,20 @@ namespace DcsMaxLauncher
 
         public MainForm()
         {
-            InitializeForm();
-            CreateLoadingUI();
-            // Show form immediately with loading UI
-            this.Show();
-            Application.DoEvents();
-            // Then start WebView2 initialization
-            InitializeWebView();
+            try
+            {
+                InitializeForm();
+                CreateLoadingUI();
+                // Show form immediately with loading UI
+                this.Show();
+                Application.DoEvents();
+                // Then start WebView2 initialization
+                InitializeWebView();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Initialization Error: " + ex.ToString(), "DCS-Max Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void CreateLoadingUI()
@@ -105,59 +122,78 @@ namespace DcsMaxLauncher
             }
 
             // Get project root (go up from the launcher location)
-            projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+            // The exe is in ui-app\bin\, so we need to go up 2 levels to reach DCS-Max root
+            projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."));
             
-            // If running from build output, adjust path
+            // Verify we found the right folder by checking for Backups directory
             if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
             {
-                projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."));
+                // Try going up 3 levels (for bin\Debug\net48 or similar)
+                projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+            }
+            if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
+            {
+                // Try going up 4 levels
+                projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
+            }
+            if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
+            {
+                // Fallback: maybe running from project folder directly
+                projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
             }
         }
 
         private async void InitializeWebView()
         {
-            webView = new WebView2();
-            webView.Dock = DockStyle.Fill;
-            webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(15, 23, 42);
-            webView.Visible = false; // Hidden until ready
-            this.Controls.Add(webView);
-
-            // Initialize WebView2 with a custom user data folder
-            string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DCS-Max", "WebView2");
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
-            await webView.EnsureCoreWebView2Async(env);
-
-            // Enable DevTools with F12
-            webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-
-            // Add host object for JavaScript communication
-            webView.CoreWebView2.WebMessageReceived += WebView_WebMessageReceived;
-
-            // Inject the bridge script BEFORE any page loads
-            await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(GetBridgeScript());
-
-            // Show WebView when navigation completes
-            webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
-
-            // Find web folder
-            string webPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web");
-            if (!Directory.Exists(webPath))
+            try
             {
-                webPath = Path.Combine(projectRoot, "ui-app", "dist");
+                webView = new WebView2();
+                webView.Dock = DockStyle.Fill;
+                webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(15, 23, 42);
+                webView.Visible = false; // Hidden until ready
+                this.Controls.Add(webView);
+
+                // Initialize WebView2 with a custom user data folder
+                string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DCS-Max", "WebView2");
+                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await webView.EnsureCoreWebView2Async(env);
+
+                // Enable DevTools with F12
+                webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+
+                // Add host object for JavaScript communication
+                webView.CoreWebView2.WebMessageReceived += WebView_WebMessageReceived;
+
+                // Inject the bridge script BEFORE any page loads
+                await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(GetBridgeScript());
+
+                // Show WebView when navigation completes
+                webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
+
+                // Find web folder
+                string webPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web");
+                if (!Directory.Exists(webPath))
+                {
+                    webPath = Path.Combine(projectRoot, "ui-app", "dist");
+                }
+
+                if (Directory.Exists(webPath))
+                {
+                    webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                        "dcsmax.local",
+                        webPath,
+                        CoreWebView2HostResourceAccessKind.Allow);
+                    
+                    webView.CoreWebView2.Navigate("https://dcsmax.local/index.html");
+                }
+                else
+                {
+                    MessageBox.Show(string.Format("Web app not found!\nLooked in:\n{0}", webPath), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-
-            if (Directory.Exists(webPath))
+            catch (Exception ex)
             {
-                webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    "dcsmax.local",
-                    webPath,
-                    CoreWebView2HostResourceAccessKind.Allow);
-                
-                webView.CoreWebView2.Navigate("https://dcsmax.local/index.html");
-            }
-            else
-            {
-                MessageBox.Show(string.Format("Web app not found!\nLooked in:\n{0}", webPath), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("WebView2 Error: " + ex.ToString(), "DCS-Max Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -201,6 +237,17 @@ namespace DcsMaxLauncher
                     },
                     writeIniConfig: function(iniPath, content) {
                         return this._invoke('writeIniConfig', [iniPath, content]);
+                    },
+                    
+                    // Performance Optimizations Config (O&O ShutUp10-style format)
+                    readOptimizationConfig: function() {
+                        return this._invoke('readOptimizationConfig', []);
+                    },
+                    writeOptimizationConfig: function(config) {
+                        return this._invoke('writeOptimizationConfig', [config]);
+                    },
+                    getOptimizationConfigPath: function() {
+                        return this._invoke('getOptimizationConfigPath', []);
                     },
 
                     // Script Execution
@@ -278,6 +325,17 @@ namespace DcsMaxLauncher
                         return this._invoke('openExternal', [url]);
                     },
 
+                    // Application Path Detection & Settings
+                    detectPaths: function() {
+                        return this._invoke('detectPaths', []);
+                    },
+                    readSettingsPaths: function() {
+                        return this._invoke('readSettingsPaths', []);
+                    },
+                    writeSettingsPaths: function(paths) {
+                        return this._invoke('writeSettingsPaths', [paths]);
+                    },
+
                     // Remove listeners (no-op for compatibility)
                     removeAllListeners: function(channel) {}
                 };
@@ -341,6 +399,15 @@ namespace DcsMaxLauncher
                             args[0] != null ? args[0].Value<string>() : null, 
                             args[1] != null ? args[1].Value<string>() : null);
                         break;
+                    case "readOptimizationConfig":
+                        result = await ReadOptimizationConfig();
+                        break;
+                    case "writeOptimizationConfig":
+                        result = await WriteOptimizationConfig(args[0] != null ? args[0].ToObject<Dictionary<string, bool>>() : null);
+                        break;
+                    case "getOptimizationConfigPath":
+                        result = GetOptimizationConfigPath();
+                        break;
                     case "executeScript":
                         var scriptArgs = args[1] != null ? args[1].ToObject<string[]>() : new string[0];
                         result = await ExecuteScript(args[0] != null ? args[0].Value<string>() : null, scriptArgs);
@@ -390,6 +457,15 @@ namespace DcsMaxLauncher
                         break;
                     case "openExternal":
                         result = OpenExternal(args[0] != null ? args[0].Value<string>() : null);
+                        break;
+                    case "detectPaths":
+                        result = DetectApplicationPaths();
+                        break;
+                    case "readSettingsPaths":
+                        result = await ReadSettingsPaths();
+                        break;
+                    case "writeSettingsPaths":
+                        result = await WriteSettingsPaths(args[0] != null ? args[0].ToObject<Dictionary<string, string>>() : null);
                         break;
                     case "watchLog":
                         StartWatchingLog(args[0] != null ? args[0].Value<string>() : null);
@@ -454,12 +530,21 @@ namespace DcsMaxLauncher
             try
             {
                 string fullPath = Path.Combine(projectRoot, iniPath);
+                System.Diagnostics.Debug.WriteLine("ReadIniConfig: fullPath = " + fullPath);
+                System.Diagnostics.Debug.WriteLine("ReadIniConfig: File.Exists = " + File.Exists(fullPath));
                 string content = await Task.Run(delegate { return File.ReadAllText(fullPath); });
+                System.Diagnostics.Debug.WriteLine("ReadIniConfig: content length = " + content.Length);
                 var parsed = ParseIni(content);
+                System.Diagnostics.Debug.WriteLine("ReadIniConfig: parsed sections = " + string.Join(", ", parsed.Keys));
+                if (parsed.ContainsKey("DCSOptionsTests"))
+                {
+                    System.Diagnostics.Debug.WriteLine("ReadIniConfig: DCSOptionsTests keys = " + string.Join(", ", parsed["DCSOptionsTests"].Keys));
+                }
                 return new { success = true, content = content, parsed = parsed };
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine("ReadIniConfig: error = " + ex.Message);
                 return new { success = false, error = ex.Message };
             }
         }
@@ -476,6 +561,173 @@ namespace DcsMaxLauncher
             {
                 return new { success = false, error = ex.Message };
             }
+        }
+
+        // ========== Performance Optimization Config Methods (O&O ShutUp10-style format) ==========
+        
+        private string GetOptimizationConfigFilePath()
+        {
+            return Path.Combine(projectRoot, "5-Optimization", "performance-optimizations.ini");
+        }
+
+        private object GetOptimizationConfigPath()
+        {
+            string configPath = GetOptimizationConfigFilePath();
+            return new { 
+                success = true, 
+                path = configPath,
+                exists = File.Exists(configPath)
+            };
+        }
+
+        private async Task<object> ReadOptimizationConfig()
+        {
+            try
+            {
+                string configPath = GetOptimizationConfigFilePath();
+                
+                // If file doesn't exist, return empty config (all defaults to enabled)
+                if (!File.Exists(configPath))
+                {
+                    return new { 
+                        success = true, 
+                        exists = false,
+                        config = new Dictionary<string, bool>()
+                    };
+                }
+
+                var config = await Task.Run(() => ParseOptimizationConfig(configPath));
+                return new { 
+                    success = true, 
+                    exists = true,
+                    config = config 
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private Dictionary<string, bool> ParseOptimizationConfig(string configPath)
+        {
+            var config = new Dictionary<string, bool>();
+            var lines = File.ReadAllLines(configPath);
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                
+                // Skip empty lines and comments
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("="))
+                    continue;
+
+                // Parse O&O format: ID<whitespace>+/-<whitespace># Description
+                // Example: R001	+	# CPU Core Parking: Disabled
+                // Also matches: CAT_REGISTRY	+	# Registry Optimization category
+                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^([A-Z][A-Z0-9_]+)\s+([+-])\s+#");
+                if (match.Success)
+                {
+                    string id = match.Groups[1].Value;
+                    bool enabled = match.Groups[2].Value == "+";
+                    config[id] = enabled;
+                }
+            }
+
+            return config;
+        }
+
+        private async Task<object> WriteOptimizationConfig(Dictionary<string, bool> config)
+        {
+            try
+            {
+                string configPath = GetOptimizationConfigFilePath();
+                
+                // If file doesn't exist, we can't update it (need template first)
+                if (!File.Exists(configPath))
+                {
+                    return new { success = false, error = "Config file not found. Run optimization once to create it." };
+                }
+
+                await Task.Run(() => UpdateOptimizationConfigFile(configPath, config));
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private void UpdateOptimizationConfigFile(string configPath, Dictionary<string, bool> config)
+        {
+            var lines = File.ReadAllLines(configPath);
+            var updatedLines = new List<string>();
+            var processedIds = new HashSet<string>();
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                
+                // Check if this line matches an optimization entry (including CAT_ entries)
+                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^([A-Z][A-Z0-9_]+)\s+([+-])\s+(#.*)$");
+                if (match.Success)
+                {
+                    string id = match.Groups[1].Value;
+                    string comment = match.Groups[3].Value;
+                    processedIds.Add(id);
+                    
+                    // Use config value if provided, otherwise keep existing
+                    bool enabled = config.ContainsKey(id) ? config[id] : (match.Groups[2].Value == "+");
+                    string newState = enabled ? "+" : "-";
+                    
+                    updatedLines.Add(string.Format("{0}\t{1}\t{2}", id, newState, comment));
+                }
+                else
+                {
+                    // Keep non-matching lines as-is (comments, headers, etc.)
+                    updatedLines.Add(line);
+                }
+            }
+
+            // Add any CAT_ entries that aren't in the file yet
+            var categoryIds = new Dictionary<string, string>
+            {
+                { "CAT_REGISTRY", "# Registry Optimization category enabled" },
+                { "CAT_SERVICES", "# Windows Services category enabled" },
+                { "CAT_TASKS", "# Scheduled Tasks category enabled" },
+                { "CAT_CACHE", "# Cache Cleaning category enabled" }
+            };
+
+            // Find position to insert category entries (after the header comments)
+            int insertPosition = 0;
+            for (int i = 0; i < updatedLines.Count; i++)
+            {
+                if (updatedLines[i].StartsWith("# ==========") && updatedLines[i].Contains("REGISTRY"))
+                {
+                    insertPosition = i;
+                    break;
+                }
+            }
+
+            var newCatLines = new List<string>();
+            foreach (var cat in categoryIds)
+            {
+                if (!processedIds.Contains(cat.Key) && config.ContainsKey(cat.Key))
+                {
+                    string state = config[cat.Key] ? "+" : "-";
+                    newCatLines.Add(string.Format("{0}\t{1}\t{2}", cat.Key, state, cat.Value));
+                }
+            }
+
+            if (newCatLines.Count > 0 && insertPosition > 0)
+            {
+                newCatLines.Insert(0, "");
+                newCatLines.Insert(1, "# CATEGORY TOGGLES");
+                newCatLines.Add("");
+                updatedLines.InsertRange(insertPosition, newCatLines);
+            }
+
+            File.WriteAllLines(configPath, updatedLines, Encoding.UTF8);
         }
 
         private object OpenFile(string filePath)
@@ -849,7 +1101,12 @@ namespace DcsMaxLauncher
             try
             {
                 string backupsDir = Path.Combine(projectRoot, "Backups");
-                var backups = new List<object>();
+                var backups = new List<BackupInfo>();
+
+                if (!Directory.Exists(backupsDir))
+                {
+                    return new { success = true, backups = backups };
+                }
 
                 await Task.Run(delegate
                 {
@@ -883,7 +1140,7 @@ namespace DcsMaxLauncher
                             continue;
                         }
 
-                        backups.Add(new
+                        backups.Add(new BackupInfo
                         {
                             name = name,
                             type = backupType,
@@ -893,7 +1150,7 @@ namespace DcsMaxLauncher
                     }
                 });
 
-                return new { success = true, backups = backups.OrderByDescending(delegate(object b) { return ((dynamic)b).date; }).ToList() };
+                return new { success = true, backups = backups.OrderByDescending(b => b.date).ToList() };
             }
             catch (Exception ex)
             {
@@ -1096,6 +1353,436 @@ namespace DcsMaxLauncher
             }
         }
 
+        // ========== Application Path Detection ==========
+
+        private object DetectApplicationPaths()
+        {
+            try
+            {
+                var paths = new Dictionary<string, object>();
+                
+                // DCS World Executable
+                paths["dcsPath"] = DetectDcsPath();
+                
+                // DCS Saved Games Folder
+                paths["savedGamesPath"] = DetectDcsSavedGamesPath();
+                
+                // CapFrameX
+                paths["capframexPath"] = DetectCapFrameXPath();
+                
+                // AutoHotkey v2
+                paths["autoHotkeyPath"] = DetectAutoHotkeyPath();
+                
+                // Pimax Client
+                paths["pimaxPath"] = DetectPimaxPath();
+                
+                // Notepad++
+                paths["notepadppPath"] = DetectNotepadPPPath();
+                
+                return new { success = true, paths = paths };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private object DetectDcsPath()
+        {
+            // Try registry first (Steam and standalone installations)
+            string[] registryPaths = new string[]
+            {
+                @"SOFTWARE\Eagle Dynamics\DCS World",
+                @"SOFTWARE\Eagle Dynamics\DCS World OpenBeta",
+                @"SOFTWARE\WOW6432Node\Eagle Dynamics\DCS World",
+                @"SOFTWARE\WOW6432Node\Eagle Dynamics\DCS World OpenBeta"
+            };
+
+            foreach (string regPath in registryPaths)
+            {
+                try
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath))
+                    {
+                        if (key != null)
+                        {
+                            object pathValue = key.GetValue("Path");
+                            if (pathValue != null)
+                            {
+                                string dcsRoot = pathValue.ToString();
+                                string exePath = Path.Combine(dcsRoot, "bin", "DCS.exe");
+                                if (File.Exists(exePath))
+                                {
+                                    return new { found = true, path = exePath, source = "registry" };
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Check common installation paths
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
+                @"C:\Program Files\Eagle Dynamics\DCS World OpenBeta\bin\DCS.exe",
+                @"D:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
+                @"D:\Program Files\Eagle Dynamics\DCS World OpenBeta\bin\DCS.exe",
+                @"E:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
+                @"D:\Games\DCS World\bin\DCS.exe",
+                @"E:\Games\DCS World\bin\DCS.exe"
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            return new { found = false, path = @"C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe", source = "default" };
+        }
+
+        private object DetectDcsSavedGamesPath()
+        {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            
+            // Check for DCS and DCS.openbeta folders
+            string[] possiblePaths = new string[]
+            {
+                Path.Combine(userProfile, "Saved Games", "DCS"),
+                Path.Combine(userProfile, "Saved Games", "DCS.openbeta")
+            };
+
+            foreach (string path in possiblePaths)
+            {
+                if (Directory.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            // Return default path even if not found
+            return new { found = false, path = Path.Combine(userProfile, "Saved Games", "DCS"), source = "default" };
+        }
+
+        private object DetectCapFrameXPath()
+        {
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files (x86)\CapFrameX\CapFrameX.exe",
+                @"C:\Program Files\CapFrameX\CapFrameX.exe",
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CapFrameX", "CapFrameX.exe")
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            return new { found = false, path = @"C:\Program Files (x86)\CapFrameX\CapFrameX.exe", source = "default" };
+        }
+
+        private object DetectAutoHotkeyPath()
+        {
+            string[] commonPaths = new string[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "v2", "AutoHotkey64.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "v2", "AutoHotkey.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AutoHotkey", "v2", "AutoHotkey.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "AutoHotkey", "v2", "AutoHotkey.exe")
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            return new { found = false, path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "v2", "AutoHotkey.exe"), source = "default" };
+        }
+
+        private object DetectPimaxPath()
+        {
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe",
+                @"C:\Program Files (x86)\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            return new { found = false, path = @"C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe", source = "default" };
+        }
+
+        private object DetectNotepadPPPath()
+        {
+            // Try registry first
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Notepad++"))
+                {
+                    if (key != null)
+                    {
+                        object pathValue = key.GetValue("");
+                        if (pathValue != null)
+                        {
+                            string exePath = Path.Combine(pathValue.ToString(), "notepad++.exe");
+                            if (File.Exists(exePath))
+                            {
+                                return new { found = true, path = exePath, source = "registry" };
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files\Notepad++\notepad++.exe",
+                @"C:\Program Files (x86)\Notepad++\notepad++.exe"
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+
+            return new { found = false, path = @"C:\Program Files\Notepad++\notepad++.exe", source = "default" };
+        }
+
+        // ========== Settings INI Read/Write ==========
+
+        private string GetSettingsIniPath()
+        {
+            return Path.Combine(projectRoot, "4-Performance-Testing", "4.1.1-dcs-testing-configuration.ini");
+        }
+
+        private async Task<object> ReadSettingsPaths()
+        {
+            try
+            {
+                string iniPath = GetSettingsIniPath();
+                if (!File.Exists(iniPath))
+                {
+                    return new { success = false, error = "INI file not found", paths = new Dictionary<string, string>() };
+                }
+
+                var paths = await Task.Run(() => ParsePathsFromIni(iniPath));
+                return new { success = true, paths = paths };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private Dictionary<string, string> ParsePathsFromIni(string iniPath)
+        {
+            var paths = new Dictionary<string, string>();
+            string content = File.ReadAllText(iniPath);
+            
+            // Map INI keys to settings keys
+            var keyMapping = new Dictionary<string, string>
+            {
+                { "dcsExe", "dcsPath" },
+                { "optionsLua", "savedGamesPath" }, // Will extract folder from this
+                { "capframex", "capframexPath" },
+                { "autohotkey", "autoHotkeyPath" },
+                { "pimax", "pimaxPath" },
+                { "notepadpp", "notepadppPath" },
+                { "mission", "benchmarkMissionPath" }
+            };
+
+            string currentSection = "";
+            foreach (var line in content.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";"))
+                    continue;
+
+                // Skip comments that start with #
+                if (trimmed.StartsWith("#"))
+                    continue;
+
+                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    currentSection = trimmed.Substring(1, trimmed.Length - 2);
+                    continue;
+                }
+
+                // Only read from DevelopmentOverrides or Configuration sections
+                if (currentSection != "DevelopmentOverrides" && currentSection != "Configuration")
+                    continue;
+
+                if (trimmed.Contains("="))
+                {
+                    var parts = trimmed.Split(new[] { '=' }, 2);
+                    if (parts.Length == 2)
+                    {
+                        string key = parts[0].Trim();
+                        string value = parts[1].Trim();
+
+                        // Expand environment variables
+                        value = Environment.ExpandEnvironmentVariables(value);
+
+                        if (keyMapping.ContainsKey(key))
+                        {
+                            string settingsKey = keyMapping[key];
+                            
+                            // Special handling for optionsLua -> savedGamesPath (extract folder)
+                            if (key == "optionsLua" && !string.IsNullOrEmpty(value))
+                            {
+                                // Get parent folder of Config folder
+                                string configDir = Path.GetDirectoryName(value);
+                                if (configDir != null && configDir.EndsWith("Config", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    value = Path.GetDirectoryName(configDir) ?? value;
+                                }
+                            }
+                            
+                            paths[settingsKey] = value;
+                        }
+                    }
+                }
+            }
+
+            return paths;
+        }
+
+        private async Task<object> WriteSettingsPaths(Dictionary<string, string> paths)
+        {
+            try
+            {
+                string iniPath = GetSettingsIniPath();
+                if (!File.Exists(iniPath))
+                {
+                    return new { success = false, error = "INI file not found" };
+                }
+
+                await Task.Run(() => UpdateIniWithPaths(iniPath, paths));
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private void UpdateIniWithPaths(string iniPath, Dictionary<string, string> paths)
+        {
+            var lines = File.ReadAllLines(iniPath).ToList();
+            
+            // Map settings keys to INI keys
+            var keyMapping = new Dictionary<string, string>
+            {
+                { "dcsPath", "dcsExe" },
+                { "savedGamesPath", "optionsLua" }, // Will convert to optionsLua path
+                { "capframexPath", "capframex" },
+                { "autoHotkeyPath", "autohotkey" },
+                { "pimaxPath", "pimax" },
+                { "notepadppPath", "notepadpp" },
+                { "benchmarkMissionPath", "mission" }
+            };
+
+            bool inDevOverrides = false;
+            var processedKeys = new HashSet<string>();
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var trimmed = lines[i].Trim();
+
+                if (trimmed.StartsWith("["))
+                {
+                    inDevOverrides = trimmed == "[DevelopmentOverrides]";
+                    continue;
+                }
+
+                if (!inDevOverrides) continue;
+
+                // Check if this line matches any of our path keys
+                foreach (var mapping in keyMapping)
+                {
+                    string settingsKey = mapping.Key;
+                    string iniKey = mapping.Value;
+
+                    if (paths.ContainsKey(settingsKey) && trimmed.StartsWith(iniKey + " =") || trimmed.StartsWith(iniKey + "="))
+                    {
+                        string value = paths[settingsKey];
+                        
+                        // Special handling for savedGamesPath -> optionsLua
+                        if (settingsKey == "savedGamesPath")
+                        {
+                            value = Path.Combine(value, "Config", "options.lua");
+                        }
+
+                        lines[i] = iniKey + " = " + value;
+                        processedKeys.Add(settingsKey);
+                    }
+                }
+            }
+
+            // Add any missing paths to DevelopmentOverrides section
+            int devOverridesIndex = -1;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (lines[i].Trim() == "[DevelopmentOverrides]")
+                {
+                    devOverridesIndex = i;
+                    break;
+                }
+            }
+
+            if (devOverridesIndex >= 0)
+            {
+                // Find next section or end of file
+                int insertIndex = devOverridesIndex + 1;
+                while (insertIndex < lines.Count && !lines[insertIndex].Trim().StartsWith("["))
+                {
+                    insertIndex++;
+                }
+
+                // Add missing paths before next section
+                foreach (var mapping in keyMapping)
+                {
+                    string settingsKey = mapping.Key;
+                    string iniKey = mapping.Value;
+
+                    if (paths.ContainsKey(settingsKey) && !processedKeys.Contains(settingsKey))
+                    {
+                        string value = paths[settingsKey];
+                        
+                        if (settingsKey == "savedGamesPath")
+                        {
+                            value = Path.Combine(value, "Config", "options.lua");
+                        }
+
+                        lines.Insert(insertIndex, iniKey + " = " + value);
+                        insertIndex++;
+                    }
+                }
+            }
+
+            File.WriteAllLines(iniPath, lines, Encoding.UTF8);
+        }
+
         private object BrowseForFile(string title, string filter)
         {
             try
@@ -1147,9 +1834,26 @@ namespace DcsMaxLauncher
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            // Global exception handlers
+            Application.ThreadException += (s, e) =>
+            {
+                MessageBox.Show("Thread Exception: " + e.Exception.ToString(), "DCS-Max Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                MessageBox.Show("Unhandled Exception: " + e.ExceptionObject.ToString(), "DCS-Max Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
+            
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new MainForm());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Fatal Error: " + ex.ToString(), "DCS-Max Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
