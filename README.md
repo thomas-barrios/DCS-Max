@@ -2,10 +2,15 @@
 
 **The Ultimate DCS World Performance Optimization Suite**
 
+DOWNLOAD LATEST HERE: 
+[https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip](https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip)
 
 DCS-Max is a comprehensive automation suite designed to maximize DCS World performance, reduce stutters, and provide safe system backup/restore capabilities. Save time and get the best experience from your PC with professional-grade optimization tools.
 
 ## 🖥️ **NEW: Graphical User Interface**
+
+<img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/dad60a78-41ea-43b0-b9c5-395e3db01ac5" />
+
 
 DCS-Max now includes a modern Electron-based UI for easy management of all features:
 
@@ -19,12 +24,21 @@ DCS-Max now includes a modern Electron-based UI for easy management of all featu
 
 ## 🎯 **What This Suite Does**
 
-- **🚀 Automated DCS Performance Testing** - Test 128+ graphics settings combinations with CapFrameX integration
-- **🛡️ Safe System Backups** - Complete backup/restore for DCS configs, Windows tasks, services, and registry
-- **⚡ Windows Optimization** - Disable unnecessary services and tasks that cause stutters and frame drops
-- **📊 Performance Analytics** - Automated benchmarking with detailed logging and result tracking
-- **🔧 Easy Configuration** - Template-based setup for various optimization scenarios
-- **🖥️ Graphical Interface** - Modern UI for effortless management (NEW!)
+**🛡️ Safe System Backups** - Complete backup/restore for DCS configs, Windows tasks, services, and registry
+
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/accff03b-99ca-4d9b-a05d-fbcb1d85ffc0" />
+
+**🚀 Automated DCS Performance Testing** - Test 128+ graphics settings combinations with CapFrameX integration
+
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/c9176b69-caca-43d4-ae54-cd44bc20dc89" />
+
+**⚡ Windows Optimization** - Disable unnecessary services and tasks that cause stutters and frame drops
+
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/4c945697-b50f-48c5-b420-57f366c5ab57" />
+
+**🖥️ Graphical Interface** - Modern UI for effortless management (NEW!)
+
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/c71e6b30-b8c1-42d3-8f50-da2918c2ce2e" />
 
 ## 🎮 **Target Audience**
 
@@ -52,11 +66,10 @@ Advanced DCS players and system administrators who want:
 
 **Easiest way to use DCS-Max - No command-line experience needed!**
 
-1. **Install Node.js 18+** from [nodejs.org](https://nodejs.org/)
-2. **Navigate** to the `ui-app` folder
-3. **Double-click** `install.bat`
-4. **Follow** the on-screen prompts
-5. **Start using** the UI - all features accessible with clicks!
+1. **Download** from [https://github.com/thomas-barrios/DCS-Max/releases](https://github.com/thomas-barrios/DCS-Max/releases)
+2. **Unzip** to desired folder
+3. **Double-click** `DCS-Max.bat`
+4. **Start using** the UI - all features accessible with clicks!
 
 **Features:**
 - ✨ Visual dashboard with system information
@@ -80,12 +93,17 @@ For users who prefer command-line or want maximum control:
 2. Extract to your preferred location (e.g., `C:\DCS-Max\`)
 3. Ensure the folder structure is intact
 
+<img width="973" height="813" alt="image" src="https://github.com/user-attachments/assets/22320b73-a2be-47cc-b65e-7256414c41d7" />
+
 
 
 ### Step 2: Create System Restore Point
 **⚠️ CRITICAL: Always create a restore point before optimization**
 
 <img width="394" height="367" alt="image" src="https://github.com/user-attachments/assets/f7370269-6188-4c1e-a3fd-3f0d7796dd28" />
+
+<img width="507" height="104" alt="image" src="https://github.com/user-attachments/assets/d79de34e-b1c8-4cbb-ab75-d0fc044d303a" />
+
 
 ```powershell
 # Run in PowerShell as Administrator
@@ -98,6 +116,9 @@ Checkpoint-Computer -Description "Before DCS-Max Optimization" -RestorePointType
 
 ### Step 3: Install Requirements
 **IMPORTANT this apps are required for DCS Max**
+
+<img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/10ee0084-48cc-41d9-aaf7-f2450e73d071" />
+
 
 #### CapFrameX 
 Recording and performance comparison tool. CapFrameX is a comprehensive frame time analysis tool that integrates seamlessly with DCS-Max for automated performance testing. This guide covers installation, configuration, and integration with the DCS-Max benchmark suite.
@@ -129,6 +150,9 @@ Before any changes, make a backup using the scripts below:
 
 This will create individual backups, for affected files and settings only. Make sure you have already created a windows restore point!
 
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/bb43e940-af7f-4938-84bc-d6d3d1514218" />
+
+
 ```powershell
 # Backup affected windows registry keys and values
 .\1.Backup-restore\1.1.1-registry-backup.ps1
@@ -148,7 +172,7 @@ This will create individual backups, for affected files and settings only. Make 
 
 
 
-### Step 5: 🛠️ Utilities Setup
+### Step 5: 🛠️ Utilities Setup OPTIONAL
 
 OPTIONAL: You can install and optmize windows with the utilities bellow:
 
@@ -189,7 +213,13 @@ Run a first-time performance test to serve as a baseline for future improvements
 
 After each change, you can run additional tests to evaluate the effect on DCS and PC performance.
 
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/9de6292e-2b4c-4ce8-b824-4f98c5bf5bec" />
+
+
 #### Open and configure **.\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini**
+
+<img width="1338" height="1488" alt="image" src="https://github.com/user-attachments/assets/b86726bc-22ca-464e-b60c-4f2d8c08cc40" />
+
 
 #### Benchmark Configuration
 ```powershell
@@ -290,7 +320,10 @@ After successfully running the first automated test, you can optimize system and
 
 Review the optimization scripts and personalize them according to your needs.
 
-Open the scripts at: `.\\5-Optimization\\`
+<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/49c8178b-55d2-4028-a9db-e0bb8c74b372" />
+
+
+You can alternatvelly, Open the scripts at: `.\\5-Optimization\\`
 
 <img width="991" height="880" alt="image" src="https://github.com/user-attachments/assets/4d605b0c-3326-48c8-9c43-2d6c86823ff2" />
 
@@ -420,6 +453,7 @@ DCS-Max/
 │   └── _README.md
 ├── Backups/ (empty)
 ├── CHANGELOG.md
+├── DCS-Max.bat --> Start here!
 ├── LICENSE
 ├── master-config.ini
 ├── performance-guide.md
@@ -427,23 +461,6 @@ DCS-Max/
 ├── quick-start-guide.md
 └── README.md
 ```
-
-## 🛠️ **Core Features**
-
-### **System Optimization**
-- **Windows Tasks**: Backup, optimize, and restore scheduled tasks that impact performance
-- **Windows Services**: Disable gaming-irrelevant services that cause stutters
-- **Registry Optimization**: Performance-focused registry tweaks with full restore capability
-
-### **DCS Tools**
-- **Automated Benchmarking**: Test graphics settings with CapFrameX integration
-- **Safe Configuration Management**: Backup and restore DCS settings safely
-- **Performance Analytics**: Detailed logging and performance impact analysis
-
-### **Safety Features**
-- **Complete Backups**: Every optimization script creates restorable backups
-- **Error Handling**: Robust error detection and recovery mechanisms
-- **Validation**: Scripts verify successful operations before proceeding
 
 ## ⚠️ **Common Installation Issues**
 
