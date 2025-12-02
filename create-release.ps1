@@ -34,8 +34,13 @@ Write-Host "`nCreating release package..." -ForegroundColor Yellow
 # 1. Main launcher
 Copy-Item "DCS-Max.bat" $releaseFolder
 
-# 2. Documentation
-$docs = @("README.md", "CHANGELOG.md", "LICENSE", "quick-start-guide.md", "performance-guide.md", "performance-optimizations.md", "troubleshooting.md")
+# 2. Documentation (use lean release README)
+if (Test-Path "RELEASE_README.md") {
+    Copy-Item "RELEASE_README.md" (Join-Path $releaseFolder "README.md")
+} elseif (Test-Path "README.md") {
+    Copy-Item "README.md" $releaseFolder
+}
+$docs = @("CHANGELOG.md", "LICENSE", "quick-start-guide.md", "performance-guide.md", "performance-optimizations.md", "troubleshooting.md")
 foreach ($doc in $docs) {
     if (Test-Path $doc) { Copy-Item $doc $releaseFolder }
 }
