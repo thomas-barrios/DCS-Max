@@ -220,6 +220,18 @@ After each change, you can run additional tests to evaluate the effect on DCS an
 
 <img width="1338" height="1488" alt="image" src="https://github.com/user-attachments/assets/b86726bc-22ca-464e-b60c-4f2d8c08cc40" />
 
+#### Running Tests
+
+1) Edit the Configuration, setting what tests you wanna run
+2) Click Start Benchmark
+3) Notepad++ will openfor log and progression display
+4) Pimax wil open (if you fly VR, only Pimax integrated yet, other headsets to come)
+5) CapFrameX will open record the data of the tests
+6) DCS will open running a standard F18 Mission (you might add your own mission) looping trough all tests
+7) After all tests run. you can compare performance results in CapFrameX
+
+<img width="3838" height="2149" alt="image" src="https://github.com/user-attachments/assets/4074b71a-6b33-42df-be2a-6459492f9016" />
+
 
 #### Benchmark Configuration
 ```powershell
