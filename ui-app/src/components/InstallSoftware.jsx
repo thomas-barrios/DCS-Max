@@ -50,13 +50,31 @@ function InstallSoftware() {
     setCheckingStatus(true);
     const status = {};
     
-    for (const software of requiredSoftware) {
-      try {
-        const result = await window.dcsMax.executeCommand(`winget list --id=${software.wingetId} --exact`);
-        // winget returns the package info in stdout if installed
-        status[software.id] = result.stdout && result.stdout.includes(software.wingetId) ? 'installed' : 'not-installed';
-      } catch (err) {
-        console.error('Check error for', software.id, err);
+    try {
+      // Use fast path-based detection instead of slow winget list
+      const pathsResult = await window.dcsMax.detectPaths();
+      
+      if (pathsResult.success && pathsResult.paths) {
+        // Check CapFrameX
+        const capframex = pathsResult.paths.capframexPath;
+        status['capframex'] = capframex?.found ? 'installed' : 'not-installed';
+        
+        // Check AutoHotkey
+        const autohotkey = pathsResult.paths.autoHotkeyPath;
+        status['autohotkey'] = autohotkey?.found ? 'installed' : 'not-installed';
+        
+        // Check Notepad++
+        const notepadpp = pathsResult.paths.notepadppPath;
+        status['notepadpp'] = notepadpp?.found ? 'installed' : 'not-installed';
+      } else {
+        // Fallback: mark all as unknown
+        for (const software of requiredSoftware) {
+          status[software.id] = 'unknown';
+        }
+      }
+    } catch (err) {
+      console.error('Path detection error:', err);
+      for (const software of requiredSoftware) {
         status[software.id] = 'unknown';
       }
     }

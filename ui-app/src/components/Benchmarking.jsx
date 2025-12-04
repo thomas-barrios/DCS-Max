@@ -15,6 +15,9 @@ function Benchmarking() {
   const [configError, setConfigError] = useState(null);
   const [running, setRunning] = useState(false);
   const [projectRoot, setProjectRoot] = useState('');
+  const [closeAppsAfterTests, setCloseAppsAfterTests] = useState(false);
+  const [availableMissions, setAvailableMissions] = useState([]);
+  const [selectedMission, setSelectedMission] = useState(''); // Empty means use INI default
   const [showTip, setShowTip] = useState(() => {
     const globalSetting = localStorage.getItem('dcsmax-show-tips');
     if (globalSetting === 'false') return false;
@@ -45,6 +48,18 @@ function Benchmarking() {
       if (result.success) {
         setProjectRoot(result.path);
       }
+    });
+
+    // Load available benchmark missions
+    window.dcsMax.listDirectory('4-Performance-Testing/benchmark-missions').then(result => {
+      if (result.success && result.files) {
+        const missions = result.files
+          .filter(f => f.endsWith('.miz'))
+          .sort();
+        setAvailableMissions(missions);
+      }
+    }).catch(err => {
+      console.error('Error loading missions:', err);
     });
     
     // Auto-refresh when window regains focus (after editing file externally)
@@ -84,8 +99,17 @@ function Benchmarking() {
       setRunning(false);
     });
 
+    // Build arguments array based on options
+    const args = [];
+    if (closeAppsAfterTests) {
+      args.push('--close-apps');
+    }
+    if (selectedMission) {
+      args.push(`--mission=benchmark-missions\\${selectedMission}`);
+    }
+
     // Start the AutoHotkey benchmark script (without --headless, so Notepad++ opens)
-    window.dcsMax.executeScriptStream('4-Performance-Testing/4.1.2-dcs-testing-automation.ahk', []);
+    window.dcsMax.executeScriptStream('4-Performance-Testing/4.1.2-dcs-testing-automation.ahk', args);
   };
 
   const stopBenchmark = () => {
@@ -126,8 +150,12 @@ function Benchmarking() {
   // Get config values for display
   const configInfo = config?.Configuration || {};
   const enableVR = configInfo.EnableVR === 'true';
-  const missionPath = configInfo.mission || 'benchmark-missions\\PB-syria-telaviv-09air-20ground-scattered2-sp-noserver-500sec.miz';
-  const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\${missionPath}` : `4-Performance-Testing\\${missionPath}`;
+  const iniMissionPath = configInfo.mission || 'benchmark-missions\\PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
+  // Use selected mission if set, otherwise use INI mission
+  const effectiveMissionPath = selectedMission 
+    ? `benchmark-missions\\${selectedMission}` 
+    : iniMissionPath;
+  const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\${effectiveMissionPath}` : `4-Performance-Testing\\${effectiveMissionPath}`;
   const recordLength = configInfo.WaitRecordLength ? (parseInt(configInfo.WaitRecordLength) / 1000) : 60;
   const numberOfRuns = configInfo.NumberOfRuns ? parseInt(configInfo.NumberOfRuns) : 1;
 
@@ -257,12 +285,34 @@ function Benchmarking() {
                 </div>
               </div>
 
-              {/* Mission */}
+              {/* Mission Selection */}
               <div className="mb-4">
                 <div className="text-slate-400 text-xs mb-2">Mission</div>
-                <div className="bg-slate-700/30 rounded p-2 border border-slate-600/50">
-                  <div className="text-sm text-slate-300 break-all font-mono">{mission}</div>
-                </div>
+                <select
+                  value={selectedMission}
+                  onChange={(e) => setSelectedMission(e.target.value)}
+                  disabled={running}
+                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                >
+                  <option value="">Use INI default ({iniMissionPath.split('\\').pop()})</option>
+                  {availableMissions.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Options */}
+              <div className="mb-4">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={closeAppsAfterTests}
+                    onChange={(e) => setCloseAppsAfterTests(e.target.checked)}
+                    disabled={running}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-slate-300">Close all programs after finishing tests</span>
+                </label>
               </div>
 
               {/* Test Variations */}

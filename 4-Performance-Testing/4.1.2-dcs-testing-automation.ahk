@@ -5,12 +5,18 @@
 ; COMMAND LINE ARGUMENTS
 ; ==============================
 
-; Check for headless mode (when run from DCS-Max app)
+; Check for command line arguments (when run from DCS-Max app)
 HeadlessMode := false
+CloseAppsAfterTests := false  ; Default to false - keep apps open after finishing
+MissionOverride := ""  ; If set, overrides INI mission
+
 for arg in A_Args {
     if (arg = "--headless") {
         HeadlessMode := true
-        break
+    } else if (arg = "--close-apps") {
+        CloseAppsAfterTests := true
+    } else if (InStr(arg, "--mission=")) {
+        MissionOverride := SubStr(arg, 11)  ; Extract path after "--mission="
     }
 }
 
@@ -92,28 +98,35 @@ CompletedTestCount := 0
 StartTime := ""
 BaseTimePerTest := 0
 
-; File paths (with defaults)
+; File paths - INI takes priority, then hardcoded defaults
 optionsLua          := ReadConfigWithOverride("optionsLua", EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua")
 dcsExe              := ReadConfigWithOverride("dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe")
-capframexFolder     := A_MyDocuments "\CapFrameX\Captures"
+capframex           := ReadConfigWithOverride("capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe")
+capframexFolder     := ReadConfigWithOverride("capframexFolder", A_MyDocuments "\CapFrameX\Captures")
+pimax               := ReadConfigWithOverride("pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe")
+notepadpp           := ReadConfigWithOverride("notepadpp", "C:\Program Files\Notepad++\notepad++.exe")
 
 logFile             := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
 checkpointFile      := A_ScriptDir "\4.1.4-checkpoint.txt"
 
-capframex           := ReadConfigWithOverride("capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe")
-pimax               := ReadConfigWithOverride("pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe")
-notepadpp           := ReadConfigWithOverride("notepadpp", "C:\Program Files\Notepad++\notepad++.exe")
-
-; Mission path - if configured in INI, use it; otherwise use default
-missionFromIni      := ReadConfigWithOverride("mission", "")
-if (missionFromIni != "") {
-    ; If path doesn't start with drive letter, treat as relative to script folder
-    if (!RegExMatch(missionFromIni, "^[A-Za-z]:"))
-        mission := A_ScriptDir "\" missionFromIni
+; Mission path - command line override takes priority, then INI, then default
+if (MissionOverride != "") {
+    ; Command line mission override
+    if (!RegExMatch(MissionOverride, "^[A-Za-z]:"))
+        mission := A_ScriptDir "\" MissionOverride
     else
-        mission := missionFromIni
+        mission := MissionOverride
 } else {
-    mission := A_ScriptDir "\benchmark-missions\PB-caucasus-tibilisi-multiplayer-28air-50ground-cavok-mp-JustDogfights-v2-take1-2min.miz"
+    missionFromIni := ReadConfigWithOverride("mission", "")
+    if (missionFromIni != "") {
+        ; If path doesn't start with drive letter, treat as relative to script folder
+        if (!RegExMatch(missionFromIni, "^[A-Za-z]:"))
+            mission := A_ScriptDir "\" missionFromIni
+        else
+            mission := missionFromIni
+    } else {
+        mission := A_ScriptDir "\benchmark-missions\PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz"
+    }
 }
 
 ; ==============================
@@ -136,13 +149,7 @@ originalLua := FileRead(optionsLua)
 SplitPath logFile, , &logDir
 DirCreate logDir
 
-; Start Notepad++ in monitor mode (only in interactive mode)
-if (!HeadlessMode) {
-    if FileExist(notepadpp) {
-        Run notepadpp ' -monitor "' logFile '"'
-        Sleep 500  ; Brief pause to let Notepad++ open
-    }
-}
+; Note: Notepad++ will be started later in StartApplications() to keep it as one of the last apps to open
 
 LogWithTimestamp("")
 LogWithTimestamp("=== DCS BATCH BENCHMARK START ===")
@@ -155,6 +162,10 @@ LogWithTimestamp("  WaitBeforeRecord: " (WaitBeforeRecord/1000) "s | WaitRecordL
 LogWithTimestamp("  WaitCapFrameXWrite: " (WaitCapFrameXWrite/1000) "s | WaitMissionRestart: " (WaitMissionRestart/1000) "s")
 LogWithTimestamp("  NumberOfRuns: " NumberOfRuns " | MaxRetries: " MaxRetries)
 LogWithTimestamp("  HeadlessMode: " (HeadlessMode ? "true" : "false"))
+LogWithTimestamp("  CloseAppsAfterTests: " (CloseAppsAfterTests ? "true" : "false"))
+if (MissionOverride != "") {
+    LogWithTimestamp("  MissionOverride: " MissionOverride)
+}
 LogWithTimestamp("--- Paths ---")
 LogWithTimestamp("  optionsLua: " optionsLua)
 LogWithTimestamp("  dcsExe: " dcsExe)
@@ -388,8 +399,24 @@ MainTestLoop() {
         ; Restore original settings
         ResetToOriginalValues()
 
-        ; Close applications gracefully
-        CloseApplications()
+        ; Close applications gracefully (if enabled)
+        if (CloseAppsAfterTests) {
+            CloseApplications()
+        } else {
+            LogWithTimestamp("Keeping applications open (default behavior)")
+            ; Restart the mission so user can continue testing manually
+            if (WinExist("ahk_exe DCS.exe")) {
+                LogWithTimestamp("Restarting mission for manual testing...")
+                WinActivate "ahk_exe DCS.exe"
+                Sleep 500
+                Send "{LShift down}"
+                Sleep 50
+                Send "r"
+                Sleep 50
+                Send "{LShift up}"
+                LogWithTimestamp("Mission restart triggered")
+            }
+        }
 
         ; Clean up checkpoint file
         try {
@@ -635,6 +662,22 @@ StartApplications() {
     
     LogWithTimestamp("=== STARTING APPLICATIONS ===")
     
+    ; Start Notepad++ first (only in interactive mode) so log monitoring begins early
+    if (!HeadlessMode) {
+        if !FileExist(notepadpp) {
+            LogWithTimestamp("ERROR: Notepad++ not found: " notepadpp)
+            MsgBox "Notepad++ not found: " notepadpp, "Error", 16
+            ExitApp
+        }
+        
+        LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
+        Run notepadpp ' -monitor "' logFile '"'
+        Sleep 1000
+        LogWithTimestamp("Notepad++ started successfully")
+    } else {
+        LogWithTimestamp("Headless mode - skipping Notepad++ launch")
+    }
+    
     ; Start CapFrameX
     if !FileExist(capframex) {
         LogWithTimestamp("ERROR: CapFrameX not found: " capframex)
@@ -662,14 +705,13 @@ StartApplications() {
             ; Check if Pimax is already running
             pimaxAlreadyRunning := WinExist("ahk_exe PimaxClient.exe")
             if (pimaxAlreadyRunning) {
-                LogWithTimestamp("Pimax Client is already running, skipping launch, reduced wait time (2s)...")
+                LogWithTimestamp("Pimax Client already running, skipping launch...")
                 Sleep 2000
-                LogWithTimestamp("Pimax Client startup wait completed")
             } else {
                 LogWithTimestamp("Starting Pimax Client...")
                 Run pimax
+                LogWithTimestamp("Waiting " Round(WaitVR/1000) "s for Pimax Client to start...")
                 Sleep WaitVR
-                LogWithTimestamp("Pimax Client started successfully")
             }
         } else {
             LogWithTimestamp("VR hardware " VRhardware " selected - no additional client needed")
@@ -677,33 +719,26 @@ StartApplications() {
     } else {
         LogWithTimestamp("VR disabled - skipping VR hardware setup")
     }
-    
-    ; Start Notepad++ (only in interactive mode, not when run from app)
-    if (!HeadlessMode) {
-        if !FileExist(notepadpp) {
-            LogWithTimestamp("ERROR: Notepad++ not found: " notepadpp)
-            MsgBox "Notepad++ not found: " notepadpp, "Error", 16
-            ExitApp
-        }
-        
-        LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
-        Run notepadpp ' -monitor "' logFile '"'
-        Sleep 1000
-        LogWithTimestamp("Notepad++ started successfully")
-    } else {
-        LogWithTimestamp("Headless mode - skipping Notepad++ launch")
-    }
 }
 
 StartDCS() {
-    global dcsExe, mission, WaitMissionReady, DryRun
+    global dcsExe, mission, WaitMissionReady, DryRun, HeadlessMode
     
     LogWithTimestamp("=== STARTING DCS ===")
+    
+    ; Activate Notepad++ window so it appears above CapFrameX and Pimax (before DCS takes focus)
+    if (!HeadlessMode) {
+        if (WinExist("ahk_exe notepad++.exe")) {
+            WinActivate "ahk_exe notepad++.exe"
+            Sleep 200
+            LogWithTimestamp("Notepad++ window activated (will be visible behind DCS)")
+        }
+    }
     
     ; Check if DCS is already running
     dcsAlreadyRunning := WinExist("ahk_exe DCS.exe")
     if (dcsAlreadyRunning) {
-        LogWithTimestamp("DCS is already running, skipping launch, , reduced wait time (2s)...")
+        LogWithTimestamp("DCS already running, skipping launch...")
         WinActivate "ahk_exe DCS.exe"
         WinWaitActive "ahk_exe DCS.exe"
         Sleep 2000
@@ -737,9 +772,8 @@ StartDCS() {
     WinActivate "ahk_exe DCS.exe"
     WinWaitActive "ahk_exe DCS.exe"
     
-    LogWithTimestamp("Waiting for mission to load...")
+    LogWithTimestamp("Waiting " Round(WaitMissionReady/1000) "s for mission to load...")
     Sleep WaitMissionReady
-    LogWithTimestamp("Mission loaded successfully")
 }
 
 CloseDCS() {
@@ -783,7 +817,7 @@ CloseDCS() {
     }
     
     ; Wait a moment for complete cleanup and file system synchronization
-    LogWithTimestamp("Waiting for DCS cleanup and file system sync...")
+    LogWithTimestamp("Waiting 5s for DCS cleanup and file system sync...")
     Sleep 5000
     
     return true
@@ -927,21 +961,29 @@ ExtractSettingValue(content, settingName) {
 }
 
 ; Build list of settings to track from configuration file
+; Only reads settings from the [DCSOptionsTests] section, not configuration sections
 BuildSettingsToTrack() {
+    global iniFile
     settingsList := []
     
     try {
-        ; Read the test configuration file
-        iniContent := FileRead(iniFile)
+        ; Read only the DCSOptionsTests section content using IniRead
+        sectionContent := IniRead(iniFile, "DCSOptionsTests")
         
         ; Parse each line for setting definitions
-        Loop Parse, iniContent, "`n", "`r" {
+        Loop Parse, sectionContent, "`n", "`r" {
             line := Trim(A_LoopField)
             ; Skip empty lines and comments
             if (line == "" || SubStr(line, 1, 1) == "#")
                 continue
+            
+            ; Handle inline metadata format: Setting = value1,value2 | RestartRequired=DCS
+            if (InStr(line, "|")) {
+                parts := StrSplit(line, "|")
+                line := Trim(parts[1])  ; Only use the setting part before metadata
+            }
                 
-            ; Look for pattern: settingName = values|...
+            ; Look for pattern: settingName = values
             equalsPos := InStr(line, "=")
             if (equalsPos) {
                 settingName := Trim(SubStr(line, 1, equalsPos - 1))
@@ -952,7 +994,7 @@ BuildSettingsToTrack() {
         }
                  
     } catch as e {
-        LogWithTimestamp("WARNING: Could not read test config, using default settings list")
+        LogWithTimestamp("WARNING: Could not read DCSOptionsTests section, using empty settings list: " e.Message)
     }
     
     return settingsList
@@ -1103,11 +1145,11 @@ RunBenchmark(setting, value, restartType, isLastTest := false) {
     ; In DryRun mode, skip DCS interaction
     if (DryRun) {
         LogWithTimestamp("DRY RUN: Simulating benchmark sequence...")
-        LogWithTimestamp("DRY RUN: Would " (WaitBeforeRecord/1000) "s wait  before recording")
-        LogWithTimestamp("DRY RUN: Would " (WaitRecordLength/1000) "s while recording")
-        LogWithTimestamp("DRY RUN: Would " (WaitCapFrameXWrite/1000) "s wait for file write")
+        LogWithTimestamp("DRY RUN: Waiting " Round(WaitBeforeRecord/1000) "s before recording...")
+        LogWithTimestamp("DRY RUN: Waiting " Round(WaitRecordLength/1000) "s for recording...")
+        LogWithTimestamp("DRY RUN: Waiting " Round(WaitCapFrameXWrite/1000) "s for CapFrameX file write...")
         if (!isLastTest) {
-            LogWithTimestamp("DRY RUN: Would " (WaitMissionRestart/1000) "s wait for mission restart and reload")
+            LogWithTimestamp("DRY RUN: Waiting " Round(WaitMissionRestart/1000) "s for mission restart and reload...")
         } else {
             LogWithTimestamp("DRY RUN: Skipping mission restart for last test")
         }
@@ -1158,30 +1200,30 @@ RunBenchmark(setting, value, restartType, isLastTest := false) {
             VerifySettingChanged(setting, value)
         }
 
-        LogWithTimestamp((WaitBeforeRecord/1000) "s waiting before recording...")
-
+        LogWithTimestamp("Waiting " Round(WaitBeforeRecord/1000) "s before recording...")
         Sleep WaitBeforeRecord
         Send "{ScrollLock}"
-        LogWithTimestamp("RECORD KEY pressed record STARTED, waiting " (WaitRecordLength/1000) "s")
+        LogWithTimestamp("Recording STARTED")
+        LogWithTimestamp("Waiting " Round(WaitRecordLength/1000) "s for recording to complete...")
 
         Sleep (DryRun ? 1000 : WaitRecordLength)
         Send "{ScrollLock}"
-        LogWithTimestamp("RECORD KEY pressed record STOPPED, waiting " (WaitCapFrameXWrite/1000) "s for file write")    
+        LogWithTimestamp("Recording STOPPED")    
+        LogWithTimestamp("Waiting " Round(WaitCapFrameXWrite/1000) "s for CapFrameX file write to complete...")    
 
         Sleep WaitCapFrameXWrite
         UpdateCapFrameXComment(setting, value)
         LogWithTimestamp("CapFrameX comment updated: " setting "=" value)
 
         if (!isLastTest) {
-            LogWithTimestamp("Mission restarted")
+            LogWithTimestamp("Mission restarting...")
             Send "{LShift down}"
             Sleep 50
             Send "r"
             Sleep 50
             Send "{LShift up}"
-            LogWithTimestamp("Waiting " (WaitMissionRestart/1000) "s for DCS to reload mission")
+            LogWithTimestamp("Waiting " Round(WaitMissionRestart/1000) "s for mission to reload...")
             Sleep WaitMissionRestart
-            LogWithTimestamp("Mission reload wait completed")
         } else {
             LogWithTimestamp("Skipping mission restart for last test, proceeding to cleanup.")
         }

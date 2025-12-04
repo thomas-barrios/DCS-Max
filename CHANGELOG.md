@@ -7,6 +7,49 @@ All notable changes to the DCS-Max project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-12-04 - "Viper" Bug Fixes & Automation Enhancements
+
+### 🐛 Bug Fixes
+
+Critical fixes based on user feedback:
+
+- **Install Required Software - Infinite Loading** - Fixed issue where "Checking installed Software" would spin indefinitely (5-10+ minutes) without detecting installed applications
+- **CapFrameX Installation Hang** - Resolved installation process hanging for 10+ minutes with no progress
+- **Software Detection Mismatch** - Fixed inconsistency where apps showed as "Found" in Settings but not detected in Install panel
+- **Settings Not Persisting** - Fixed DCS path and other settings reverting to defaults after saving and navigating away
+- **GPU Detection Issue** - Improved hardware detection to correctly identify primary GPU (was incorrectly showing DisplayLink USB Device instead of actual GPU)
+- **RAM Detection Accuracy** - Fixed RAM reporting showing 62GB instead of actual 64GB
+- **Mission Load Failure** - Fixed missing benchmark mission file error:
+  - `PB-caucasus-tbilisi-multiplayer-28air-50ground-cavok-mp-JustDogfights-v2-take1-2min.miz`
+
+### ✨ Added
+- **Build & Run Script** (`build-and-run.ps1`) - One-click build and launch for developers
+  - Automatically closes existing DCS-Max instances before launching
+  - Supports `-NoBuild` flag to skip compilation
+  - Graceful process termination with timeout handling
+
+- **Microsoft Defender Exclusions Script** (`2.7.2-Enable-Microsoft-Defender-Exclusions.ps1`)
+  - Adds DCS paths to Windows Defender exclusions for improved performance
+
+- **New Benchmark Mission** - Updated single-player benchmark mission
+  - `PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz`
+  - Renamed multiplayer mission for clarity
+
+### 🔄 Changed
+- **Benchmark Automation** (`4.1.2-dcs-testing-automation.ahk`)
+  - Enhanced logging and debugging capabilities
+  - Improved settings verification workflow
+  - Better file I/O retry mechanisms with exponential backoff
+
+- **UI Components** - Various improvements to Benchmarking, InstallSoftware, and SettingsPanel components
+
+- **Install Software Script** - Updated installation procedures
+
+### 🗑️ Removed
+- Deprecated multiplayer benchmark mission (replaced with clearer naming)
+
+---
+
 ## [1.2.1] - 2025-12-02 - "Viper" Release Cleanup
 
 ### 🧹 Cleanup & Release Preparation

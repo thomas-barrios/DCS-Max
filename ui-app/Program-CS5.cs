@@ -299,6 +299,9 @@ namespace DcsMaxLauncher
                     getProjectRoot: function() {
                         return this._invoke('getProjectRoot', []);
                     },
+                    listDirectory: function(relativePath) {
+                        return this._invoke('listDirectory', [relativePath]);
+                    },
                     getServices: function() {
                         return this._invoke('getServices', []);
                     },
@@ -436,6 +439,9 @@ namespace DcsMaxLauncher
                         break;
                     case "getProjectRoot":
                         result = new { success = true, path = projectRoot };
+                        break;
+                    case "listDirectory":
+                        result = ListDirectory(args[0] != null ? args[0].Value<string>() : null);
                         break;
                     case "getServices":
                         result = await GetServices();
@@ -747,6 +753,32 @@ namespace DcsMaxLauncher
                 });
                 
                 return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private object ListDirectory(string relativePath)
+        {
+            try
+            {
+                string fullPath = Path.Combine(projectRoot, relativePath);
+                if (!Directory.Exists(fullPath))
+                {
+                    return new { success = false, error = "Directory not found: " + fullPath };
+                }
+                
+                var files = Directory.GetFiles(fullPath)
+                    .Select(f => Path.GetFileName(f))
+                    .ToArray();
+                
+                var directories = Directory.GetDirectories(fullPath)
+                    .Select(d => Path.GetFileName(d))
+                    .ToArray();
+                
+                return new { success = true, files = files, directories = directories };
             }
             catch (Exception ex)
             {
@@ -1197,6 +1229,18 @@ namespace DcsMaxLauncher
             try
             {
                 string fullPath = Path.Combine(projectRoot, logPath);
+                
+                // Create log file if it doesn't exist
+                if (!File.Exists(fullPath))
+                {
+                    string directory = Path.GetDirectoryName(fullPath);
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    File.WriteAllText(fullPath, "");
+                }
+                
                 string content = await Task.Run(delegate { return File.ReadAllText(fullPath); });
                 return new { success = true, content = content };
             }
@@ -1218,10 +1262,12 @@ namespace DcsMaxLauncher
                         Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"" +
                             "$ErrorActionPreference = 'SilentlyContinue'; " +
                             "$os = (Get-CimInstance Win32_OperatingSystem).Caption; " +
-                            "$ram = [Math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 0); " +
+                            "$ram = [Math]::Ceiling((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB); " +
                             "$cpu = (Get-CimInstance Win32_Processor).Name; " +
-                            "$gpu = (Get-CimInstance Win32_VideoController | Where-Object { $_.Name -notmatch 'Microsoft|Basic' } | Select-Object -First 1).Name; " +
-                            "if (-not $gpu) { $gpu = (Get-CimInstance Win32_VideoController | Select-Object -First 1).Name }; " +
+                            "$gpus = Get-CimInstance Win32_VideoController; " +
+                            "$gpu = ($gpus | Where-Object { $_.Name -match 'NVIDIA|AMD|Radeon|GeForce|RTX|GTX' } | Select-Object -First 1).Name; " +
+                            "if (-not $gpu) { $gpu = ($gpus | Where-Object { $_.Name -notmatch 'Microsoft|Basic|DisplayLink|Virtual|Remote' } | Select-Object -First 1).Name }; " +
+                            "if (-not $gpu) { $gpu = ($gpus | Select-Object -First 1).Name }; " +
                             "$dcsPath = Join-Path $env:USERPROFILE 'Saved Games\\DCS'; " +
                             "@{ OS = if ($os) { $os } else { 'Unknown' }; RAM = if ($ram) { $ram } else { 0 }; CPU = if ($cpu) { $cpu } else { 'Unknown' }; GPU = if ($gpu) { $gpu } else { 'Unknown' }; DCSPath = $dcsPath } | ConvertTo-Json -Compress\"",
                         UseShellExecute = false,
@@ -1470,11 +1516,47 @@ namespace DcsMaxLauncher
 
         private object DetectCapFrameXPath()
         {
+            // Try registry first (winget/installer registrations)
+            try
+            {
+                string[] registryPaths = new string[]
+                {
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{F0A3FF6B-0A2A-4BB6-B3B2-7E8C9A8E0001}_is1",
+                    @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{F0A3FF6B-0A2A-4BB6-B3B2-7E8C9A8E0001}_is1",
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CapFrameX",
+                    @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\CapFrameX"
+                };
+
+                foreach (string regPath in registryPaths)
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath))
+                    {
+                        if (key != null)
+                        {
+                            object installLocation = key.GetValue("InstallLocation");
+                            if (installLocation != null)
+                            {
+                                string exePath = Path.Combine(installLocation.ToString(), "CapFrameX.exe");
+                                if (File.Exists(exePath))
+                                {
+                                    return new { found = true, path = exePath, source = "registry" };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Check common installation paths
             string[] commonPaths = new string[]
             {
                 @"C:\Program Files (x86)\CapFrameX\CapFrameX.exe",
                 @"C:\Program Files\CapFrameX\CapFrameX.exe",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CapFrameX", "CapFrameX.exe")
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CapFrameX", "CapFrameX.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CapFrameX", "CapFrameX.exe"),
+                // Winget often installs here
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "CXWorld", "CapFrameX", "CapFrameX.exe")
             };
 
             foreach (string path in commonPaths)
@@ -1490,12 +1572,55 @@ namespace DcsMaxLauncher
 
         private object DetectAutoHotkeyPath()
         {
+            // Try registry first
+            try
+            {
+                string[] registryPaths = new string[]
+                {
+                    @"SOFTWARE\AutoHotkey",
+                    @"SOFTWARE\WOW6432Node\AutoHotkey"
+                };
+
+                foreach (string regPath in registryPaths)
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath))
+                    {
+                        if (key != null)
+                        {
+                            object installDir = key.GetValue("InstallDir");
+                            if (installDir != null)
+                            {
+                                // Check for v2 first, then v1
+                                string v2Path = Path.Combine(installDir.ToString(), "v2", "AutoHotkey64.exe");
+                                if (File.Exists(v2Path))
+                                {
+                                    return new { found = true, path = v2Path, source = "registry" };
+                                }
+                                v2Path = Path.Combine(installDir.ToString(), "v2", "AutoHotkey.exe");
+                                if (File.Exists(v2Path))
+                                {
+                                    return new { found = true, path = v2Path, source = "registry" };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Check common installation paths
             string[] commonPaths = new string[]
             {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "v2", "AutoHotkey64.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "v2", "AutoHotkey.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AutoHotkey", "v2", "AutoHotkey.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "AutoHotkey", "v2", "AutoHotkey.exe")
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "AutoHotkey", "v2", "AutoHotkey.exe"),
+                // Standalone AutoHotkey v2 installation
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "AutoHotkey64.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AutoHotkey", "AutoHotkey.exe"),
+                // User installation paths
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AutoHotkey", "v2", "AutoHotkey64.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AutoHotkey", "v2", "AutoHotkey.exe")
             };
 
             foreach (string path in commonPaths)
@@ -1723,7 +1848,7 @@ namespace DcsMaxLauncher
                     string settingsKey = mapping.Key;
                     string iniKey = mapping.Value;
 
-                    if (paths.ContainsKey(settingsKey) && trimmed.StartsWith(iniKey + " =") || trimmed.StartsWith(iniKey + "="))
+                    if (paths.ContainsKey(settingsKey) && (trimmed.StartsWith(iniKey + " =") || trimmed.StartsWith(iniKey + "=")))
                     {
                         string value = paths[settingsKey];
                         

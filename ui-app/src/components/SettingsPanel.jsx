@@ -204,7 +204,12 @@ function SettingsPanel() {
         const sources = { ...pathSources };
         
         for (const [key, pathInfo] of Object.entries(result.paths)) {
-          if (pathInfo.path) {
+          // Only update if the current setting is empty or uses a default/detected path
+          // Preserve user-set paths (from INI, manual entry, or browse)
+          const currentSource = pathSources[key] || '';
+          const isUserSet = currentSource === 'ini' || currentSource === 'manual' || currentSource === 'user selected';
+          
+          if (!isUserSet && pathInfo.path) {
             newSettings[key] = pathInfo.path;
             sources[key] = pathInfo.found ? `detected (${pathInfo.source})` : 'default';
           }

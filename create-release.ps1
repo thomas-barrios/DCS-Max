@@ -91,6 +91,13 @@ Set-Content -Path (Join-Path $backupsDir "_BackupLog.txt") -Value "# DCS-Max Bac
 # Remove any .git folders
 Get-ChildItem -Path $releaseFolder -Recurse -Directory -Filter ".git" -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
+# Remove dev/build scripts from root (should not be copied, but ensure they're not there)
+$devScripts = @("create-release.ps1", "build-and-run.ps1")
+foreach ($script in $devScripts) {
+    $scriptPath = Join-Path $releaseFolder $script
+    if (Test-Path $scriptPath) { Remove-Item -Force $scriptPath }
+}
+
 # Remove debug files from bin
 $debugFiles = @("webview-debug.log", "test.exe")
 foreach ($file in $debugFiles) {

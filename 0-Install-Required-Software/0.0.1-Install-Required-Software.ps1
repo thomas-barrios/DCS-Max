@@ -16,16 +16,19 @@ try {
 
 Write-Host "Winget found. Proceeding with installations..."
 
+# Common flags to prevent hangs and prompts
+$wingetFlags = "--exact --scope=user --accept-package-agreements --accept-source-agreements --silent"
+
 # Install CapFrameX
 Write-Host "Installing CapFrameX..."
-winget install --id=CXWorld.CapFrameX --exact --scope=user
+Invoke-Expression "winget install --id=CXWorld.CapFrameX $wingetFlags"
 
 # Install AutoHotkey
 Write-Host "Installing AutoHotkey..."
-winget install --id=AutoHotkey.AutoHotkey --exact --scope=user
+Invoke-Expression "winget install --id=AutoHotkey.AutoHotkey $wingetFlags"
 
 # Install Notepad++
 Write-Host "Installing Notepad++..."
-winget install --id=Notepad++.Notepad++ --exact --scope=user
+Invoke-Expression "winget install --id=Notepad++.Notepad++ $wingetFlags"
 
 Write-Host "Installation complete. Please launch each application to complete setup."
