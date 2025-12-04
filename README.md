@@ -2,8 +2,8 @@
 
 **The Ultimate DCS World Performance Optimization Suite**
 
-DOWNLOAD LATEST HERE: 
-[https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip](https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip)
+DOWNLOAD LATEST ZIP HERE: 
+[https://github.com/thomas-barrios/DCS-Max/releases/](https://github.com/thomas-barrios/DCS-Max/releases/)
 
 DCS-Max is a comprehensive automation suite designed to maximize DCS World performance, reduce stutters, and provide safe system backup/restore capabilities. Save time and get the best experience from your PC with professional-grade optimization tools.
 
