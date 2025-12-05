@@ -2,8 +2,8 @@
 
 **The Ultimate DCS World Performance Optimization Suite**
 
-DOWNLOAD LATEST HERE: 
-[https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip](https://github.com/thomas-barrios/DCS-Max/releases/download/v1.2.1/DCS-Max-v1.2.1.zip)
+DOWNLOAD LATEST ZIP HERE: 
+[https://github.com/thomas-barrios/DCS-Max/releases/](https://github.com/thomas-barrios/DCS-Max/releases/)
 
 DCS-Max is a comprehensive automation suite designed to maximize DCS World performance, reduce stutters, and provide safe system backup/restore capabilities. Save time and get the best experience from your PC with professional-grade optimization tools.
 
@@ -14,13 +14,13 @@ DCS-Max is a comprehensive automation suite designed to maximize DCS World perfo
 
 DCS-Max now includes a modern Electron-based UI for easy management of all features:
 
-- **Visual Dashboard** - Overview of system info and quick actions
-- **One-Click Operations** - Backup, restore, and optimize with a single click
-- **Real-Time Monitoring** - Live log viewing and progress tracking
-- **Configuration Editor** - Visual INI editor for benchmark settings
+- **VISUAL DASHBOARD**- Overview of system info and quick actions
+- **BACKUP/RESTORE** - Create, backups, restore and schedule automatic backups with a single click
+- **RUN BENCHMARKS** - Run benchmarks first to baseline, ant them apply optimizations checking performance improvements.
+- **APPLY OPTMIZATIONS** - Select common Windows Services, Register and Tasks optimizations to apply easily.
 - **No Command Line Required** - User-friendly interface for all operations
 
-**To use the UI:** Navigate to `ui-app/` folder and see [UI Setup Guide](ui-app/SETUP.md)
+**To use the UI:** double click *DCS-Max.bat* at root folder
 
 ## 🎯 **What This Suite Does**
 
