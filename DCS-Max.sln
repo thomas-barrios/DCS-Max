@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DcsMaxLauncher", "ui-app\DcsMaxLauncher.csproj", "{729DEC1A-0674-C5B2-862E-21E6BEE7B712}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{729DEC1A-0674-C5B2-862E-21E6BEE7B712}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{729DEC1A-0674-C5B2-862E-21E6BEE7B712}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{729DEC1A-0674-C5B2-862E-21E6BEE7B712}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{729DEC1A-0674-C5B2-862E-21E6BEE7B712}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4846BF25-0C75-4AF0-9F9A-E249C327671A}
+	EndGlobalSection
+EndGlobal

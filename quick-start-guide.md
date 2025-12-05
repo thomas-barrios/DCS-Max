@@ -21,9 +21,6 @@
 - ✅ CapFrameX – [Download](https://www.capframex.com/)
 - ✅ Notepad++ – [Download](https://notepad-plus-plus.org/)
 
-**Optional (for GUI):**
-- ✅ Node.js 18+ – [Download](https://nodejs.org/)
-
 
 ## 📥 **Download and Setup**
 
