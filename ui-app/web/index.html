@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DCS-Max - Performance Optimization Suite</title>
+    <style>
+      /* Critical CSS for instant loading appearance */
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0f172a;
+        color: #e2e8f0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      #loading-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #0f172a;
+      }
+      #loading-placeholder.hidden { display: none; }
+      .loading-content {
+        text-align: center;
+      }
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #1e293b;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-B-LRAN6p.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DxaFBcKI.css">
+  </head>
+  <body>
+    <div id="loading-placeholder">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div>Loading DCS-Max...</div>
+      </div>
+    </div>
+    <div id="root"></div>
+  </body>
+</html>
