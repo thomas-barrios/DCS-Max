@@ -12,7 +12,7 @@ DCS-Max is a comprehensive automation suite designed to maximize DCS World perfo
 <img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/dad60a78-41ea-43b0-b9c5-395e3db01ac5" />
 
 
-DCS-Max now includes a modern Electron-based UI for easy management of all features:
+DCS-Max includes a modern Electron-based UI for easy management of all features:
 
 - **VISUAL DASHBOARD**- Overview of system info and quick actions
 - **BACKUP/RESTORE** - Create, backups, restore and schedule automatic backups with a single click
@@ -30,7 +30,11 @@ DCS-Max now includes a modern Electron-based UI for easy management of all featu
 
 **🚀 Automated DCS Performance Testing** - Test 128+ graphics settings combinations with CapFrameX integration
 
-<img width="2080" height="1369" alt="image" src="https://github.com/user-attachments/assets/c9176b69-caca-43d4-ae54-cd44bc20dc89" />
+<img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/13037df0-ef00-4996-8eed-bc302f53c05b" />
+
+**🚀 Select Multiple Settings to be tested** - Test 128+ graphics settings combinations with CapFrameX integration
+
+<img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/352f736a-6d92-46a2-9996-ccc88c21969d" />
 
 **⚡ Windows Optimization** - Disable unnecessary services and tasks that cause stutters and frame drops
 
@@ -43,10 +47,12 @@ DCS-Max now includes a modern Electron-based UI for easy management of all featu
 ## 🎮 **Target Audience**
 
 Advanced DCS players and system administrators who want:
-- Maximum FPS and minimum stutters in VR and traditional setups
-- Safe, reversible system optimizations
-- Automated performance testing capabilities
-- Professional-grade backup and restore functionality
+- VISUAL DASHBOARD- Overview of system info and quick actions
+- BACKUP/RESTORE - Create, backups, restore and schedule automatic backups with a single click
+- RUN BENCHMARKS - Run benchmarks first to baseline, ant them apply optimizations checking performance improvements.
+- MULTIPLE SETTINGS TO TEST - Test 128+ graphics settings combinations with CapFrameX integration
+- APPLY OPTMIZATIONS - Select common Windows Services, Register and Tasks optimizations to apply easily.
+- NO COMMAND LINE REQUIRED - User-friendly interface for all operations
 
 
 ## 📋 **Pre-requisites**
