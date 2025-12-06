@@ -5,11 +5,11 @@
     "dryRun": false,
     "vr": {
       "enabled": true,
-      "hardware": "Pimax"
+      "hardware": "auto"
     },
     "waitTimes": {
-      "vr": 15000,
-      "missionReady": 35000,
+      "vr": 20000,
+      "missionReady": 45000,
       "beforeRecord": 3000,
       "recordLength": 60000,
       "capFrameXWrite": 5000,
@@ -21,7 +21,9 @@
       "capframex": "C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe",
       "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures",
       "notepadpp": "C:\\Program Files\\Notepad++\\notepad++.exe",
-      "pimax": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe"
+      "metaquestLink": "auto",
+      "steamVR": "auto",
+      "pimax": "auto"
     },
     "mission": "Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz",
     "numberOfRuns": 3,
@@ -402,6 +404,7 @@
       "setting": "scaling",
       "values": [
         0.25,
+        0.65,
         0.85
       ],
       "enabled": false
