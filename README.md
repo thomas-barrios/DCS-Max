@@ -7,6 +7,12 @@ DOWNLOAD LATEST ZIP HERE:
 
 DCS-Max is a comprehensive automation suite designed to maximize DCS World performance, reduce stutters, and provide safe system backup/restore capabilities. Save time and get the best experience from your PC with professional-grade optimization tools.
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=aNVdtNPUIHs">
+    <img src="https://img.youtube.com/vi/aNVdtNPUIHs/maxresdefault.jpg" alt="Watch the video" />
+  </a>
+</p>
+
 ## 🖥️ **NEW: Graphical User Interface**
 
 <img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/dad60a78-41ea-43b0-b9c5-395e3db01ac5" />
