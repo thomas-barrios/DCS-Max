@@ -155,12 +155,11 @@ if ($Version) {
 
 Write-Host "`nTarget Version: $targetVersion" -ForegroundColor Green
 
-# Confirm before proceeding
-$confirm = Read-Host "Proceed with version $targetVersion? (Y/n)"
-if ($confirm -eq 'n' -or $confirm -eq 'N') {
-    Write-Host "Cancelled." -ForegroundColor Yellow
-    exit 0
-}
+# Close DCS-Max process if running
+Write-Host "Closing DCS-Max if running..." -ForegroundColor Yellow
+Get-Process DCS-Max -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+Write-Host "Closed DCS-Max processes" -ForegroundColor Green
 
 # Update all version references
 Update-VersionInFiles -NewVersion $targetVersion
@@ -223,7 +222,16 @@ $binPath = Join-Path $scriptDir "ui-app\bin"
 if (-not (Test-Path (Join-Path $binPath "DCS-Max.exe"))) {
     Write-Host "Building UI app first..." -ForegroundColor Yellow
     Push-Location "ui-app"
-    & .\build.ps1
+    
+    # Check for node_modules, install if needed
+    if (-not (Test-Path "node_modules")) {
+        Write-Host "Installing npm dependencies..." -ForegroundColor Yellow
+        npm install
+    }
+    
+    # Build the app
+    npm run build
+    
     Pop-Location
 }
 
