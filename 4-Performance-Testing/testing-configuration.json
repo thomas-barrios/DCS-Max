@@ -8,8 +8,8 @@
       "hardware": "Pimax"
     },
     "waitTimes": {
-      "vr": 15000,
-      "missionReady": 35000,
+      "vr": 20000,
+      "missionReady": 45000,
       "beforeRecord": 3000,
       "recordLength": 60000,
       "capFrameXWrite": 5000,
