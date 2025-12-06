@@ -9,13 +9,14 @@ import {
   CheckCircle,
   Shield,
   Download,
-  Bug
+  Bug,
+  Gauge
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InstallSoftware from './components/InstallSoftware';
 import BackupRestore from './components/BackupRestore';
 import Optimization from './components/Optimization';
-import Benchmarking from './components/Benchmarking';
+import PerformanceTesting from './components/PerformanceTesting';
 import Logs from './components/Logs';
 import SettingsPanel from './components/SettingsPanel';
 
@@ -42,7 +43,7 @@ function App() {
     { id: 'dashboard', name: 'Dashboard', icon: Activity },
     { id: 'backup', name: 'Backup/Restore', icon: Database },
     { id: 'install', name: 'Install Required Soft', icon: Download },
-    { id: 'benchmarking', name: 'Benchmarking', icon: Activity },
+    { id: 'performance', name: 'Performance Testing', icon: Gauge },
     { id: 'optimization', name: 'Optimization', icon: Wrench },
     { id: 'logs', name: 'Logs', icon: FileText },
     { id: 'settings', name: 'Settings', icon: Settings },
@@ -58,8 +59,8 @@ function App() {
         return <BackupRestore />;
       case 'optimization':
         return <Optimization isAdmin={isAdmin} />;
-      case 'benchmarking':
-        return <Benchmarking />;
+      case 'performance':
+        return <PerformanceTesting />;
       case 'logs':
         return <Logs />;
       case 'settings':
@@ -85,7 +86,7 @@ function App() {
                 onClick={() => window.dcsMax?.openExternal?.('https://github.com/thomas-barrios/DCS-Max/blob/master/README.md')}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
-                v1.2.1
+                v1.3.0
               </button>
             </div>
           </div>

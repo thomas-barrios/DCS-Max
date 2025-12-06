@@ -12,6 +12,48 @@ Set-Location $scriptDir
 
 Write-Host "=== DCS-Max Build and Run ===" -ForegroundColor Cyan
 
+# Close existing DCS-Max instance BEFORE building
+Write-Host "`nChecking for existing DCS-Max instances..." -ForegroundColor Yellow
+$closed = $false
+
+# Method 1: Try taskkill first (most reliable)
+$tasklistResult = tasklist /FI "IMAGENAME eq DCS-Max.exe" 2>$null | Select-String "DCS-Max"
+if ($tasklistResult) {
+    Write-Host "Closing DCS-Max via taskkill..." -ForegroundColor Yellow
+    taskkill /F /IM "DCS-Max.exe" 2>$null | Out-Null
+    $closed = $true
+}
+
+# Method 2: Also try by process name as backup
+$existingProcess = Get-Process -Name "DCS-Max" -ErrorAction SilentlyContinue
+if ($existingProcess) {
+    Write-Host "Closing existing DCS-Max instance via Stop-Process..." -ForegroundColor Yellow
+    $existingProcess | Stop-Process -Force -ErrorAction SilentlyContinue
+    $closed = $true
+}
+
+# Wait for process to fully terminate
+if ($closed) {
+    Write-Host "Waiting for process to terminate..." -ForegroundColor Yellow
+    $timeout = 10
+    $elapsed = 0
+    while ($elapsed -lt $timeout) {
+        $stillRunning = Get-Process -Name "DCS-Max" -ErrorAction SilentlyContinue
+        if (-not $stillRunning) {
+            break
+        }
+        Start-Sleep -Milliseconds 500
+        $elapsed += 0.5
+    }
+    if ($elapsed -ge $timeout) {
+        Write-Host "Warning: Process may still be running" -ForegroundColor Red
+    } else {
+        Write-Host "Process terminated successfully" -ForegroundColor Green
+    }
+    # Extra wait for file handles to be released
+    Start-Sleep -Seconds 1
+}
+
 # Build the UI app unless -NoBuild is specified
 if (-not $NoBuild) {
     Write-Host "`nBuilding UI app..." -ForegroundColor Yellow
@@ -46,47 +88,6 @@ if (-not (Test-Path $exePath)) {
     Write-Host "Error: DCS-Max.exe not found at $exePath" -ForegroundColor Red
     Write-Host "Run without -NoBuild to build first." -ForegroundColor Yellow
     exit 1
-}
-
-# Close existing DCS-Max instance if running
-$closed = $false
-
-# Method 1: Try by exact process name
-$existingProcess = Get-Process -Name "DCS-Max" -ErrorAction SilentlyContinue
-if ($existingProcess) {
-    Write-Host "Closing existing DCS-Max instance..." -ForegroundColor Yellow
-    $existingProcess | Stop-Process -Force -ErrorAction SilentlyContinue
-    $closed = $true
-}
-
-# Method 2: If not found, try taskkill which is more reliable
-if (-not $closed) {
-    $tasklistResult = tasklist /FI "IMAGENAME eq DCS-Max.exe" 2>$null | Select-String "DCS-Max"
-    if ($tasklistResult) {
-        Write-Host "Closing DCS-Max via taskkill..." -ForegroundColor Yellow
-        taskkill /F /IM "DCS-Max.exe" 2>$null | Out-Null
-        $closed = $true
-    }
-}
-
-# Wait for process to fully terminate
-if ($closed) {
-    Write-Host "Waiting for process to terminate..." -ForegroundColor Yellow
-    $timeout = 10
-    $elapsed = 0
-    while ($elapsed -lt $timeout) {
-        $stillRunning = Get-Process -Name "DCS-Max" -ErrorAction SilentlyContinue
-        if (-not $stillRunning) {
-            break
-        }
-        Start-Sleep -Milliseconds 500
-        $elapsed += 0.5
-    }
-    if ($elapsed -ge $timeout) {
-        Write-Host "Warning: Process may still be running" -ForegroundColor Red
-    } else {
-        Write-Host "Process terminated successfully" -ForegroundColor Green
-    }
 }
 
 Write-Host "Starting: $exePath" -ForegroundColor Cyan

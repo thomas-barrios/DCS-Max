@@ -9,7 +9,7 @@
     <Product>DCS-Max</Product>
     <Company>Thomas Barrios</Company>
     <Description>DCS World Performance Optimization Suite</Description>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,13 +2,19 @@
 #SingleInstance Force
 
 ; ==============================
+; JSON LIBRARY
+; ==============================
+
+#Include "..\lib\jxon.ahk"
+
+; ==============================
 ; COMMAND LINE ARGUMENTS
 ; ==============================
 
 ; Check for command line arguments (when run from DCS-Max app)
 HeadlessMode := false
 CloseAppsAfterTests := false  ; Default to false - keep apps open after finishing
-MissionOverride := ""  ; If set, overrides INI mission
+MissionOverride := ""  ; If set, overrides config mission
 
 for arg in A_Args {
     if (arg = "--headless") {
@@ -21,76 +27,90 @@ for arg in A_Args {
 }
 
 ; ==============================
-; INI FILE PATH
+; JSON CONFIG FILE PATHS
 ; ==============================
 
-iniFile := A_ScriptDir "\4.1.1-dcs-testing-configuration.ini"
+configFile := A_ScriptDir "\testing-configuration.json"
+devConfigFile := A_ScriptDir "\testing-configuration.dev.json"
+schemaFile := A_ScriptDir "\..\lib\dcs-settings-schema.json"
 
 ; ==============================
-; HELPER FUNCTION TO READ CONFIG
+; LOAD JSON CONFIGURATION
 ; ==============================
 
-ReadConfig(section, key, defaultValue) {
-    global iniFile
-    try {
-        value := IniRead(iniFile, section, key, "")
-        if (value = "" || value = "ERROR")
-            return defaultValue
-        ; Handle boolean values
-        if (value = "true" || value = "True" || value = "TRUE")
-            return true
-        if (value = "false" || value = "False" || value = "FALSE")
-            return false
-        ; Handle numeric values
-        if (RegExMatch(value, "^\d+$"))
-            return Integer(value)
-        ; Handle float values
-        if (RegExMatch(value, "^\d+\.\d+$"))
-            return Float(value)
-        ; Handle environment variables
-        if (InStr(value, "%")) {
-            value := StrReplace(value, "%USERPROFILE%", EnvGet("USERPROFILE"))
-            value := StrReplace(value, "%USERNAME%", EnvGet("USERNAME"))
-        }
-        return value
-    } catch {
-        return defaultValue
+LoadJsonConfig() {
+    global configFile, devConfigFile, schemaFile
+    
+    ; Load main config
+    if (!FileExist(configFile)) {
+        throw Error("Config file not found: " configFile)
     }
+    
+    configText := FileRead(configFile, "UTF-8")
+    config := Jxon_Load(&configText)
+    
+    ; Load dev overrides if exists and merge
+    if (FileExist(devConfigFile)) {
+        devText := FileRead(devConfigFile, "UTF-8")
+        devConfig := Jxon_Load(&devText)
+        DeepMerge(config, devConfig)
+    }
+    
+    return config
+}
+
+LoadSchema() {
+    global schemaFile
+    
+    if (!FileExist(schemaFile)) {
+        return Map()  ; Return empty map if schema not found
+    }
+    
+    schemaText := FileRead(schemaFile, "UTF-8")
+    return Jxon_Load(&schemaText)
+}
+
+; Helper to expand environment variables in paths
+ExpandEnvVars(path) {
+    path := StrReplace(path, "%USERPROFILE%", EnvGet("USERPROFILE"))
+    path := StrReplace(path, "%USERNAME%", EnvGet("USERNAME"))
+    return path
 }
 
 ; ==============================
-; CONFIGURATION (with defaults)
+; LOAD CONFIGURATION
 ; ==============================
 
-; Helper to read with DevelopmentOverrides taking precedence
-ReadConfigWithOverride(key, defaultValue) {
-    ; First check DevelopmentOverrides section
-    devValue := ReadConfig("DevelopmentOverrides", key, "")
-    if (devValue != "")
-        return devValue
-    ; Fall back to Configuration section
-    return ReadConfig("Configuration", key, defaultValue)
+try {
+    config := LoadJsonConfig()
+    schema := LoadSchema()
+} catch as e {
+    MsgBox "Failed to load configuration: " e.Message "`n`nExpected:`n" configFile, "Config Error", 16
+    ExitApp
 }
+
+; ==============================
+; EXTRACT CONFIGURATION VALUES
+; ==============================
 
 ; Core settings
-DryRun              := ReadConfigWithOverride("DryRun", false)
+DryRun := GetNestedValue(config, "configuration.dryRun", false)
 
 ; VR Configuration
-EnableVR            := ReadConfigWithOverride("EnableVR", false)
-VRhardware          := ReadConfigWithOverride("VRhardware", "Pimax")
+EnableVR := GetNestedValue(config, "configuration.vr.enabled", false)
+VRhardware := GetNestedValue(config, "configuration.vr.hardware", "Pimax")
 
 ; Waiting Times (in milliseconds)
-WaitVR              := ReadConfigWithOverride("WaitVR", 15000)
-WaitMissionReady    := ReadConfigWithOverride("WaitMissionReady", 75000)
-WaitBeforeRecord    := ReadConfigWithOverride("WaitBeforeRecord", 3000)
-WaitRecordLength    := ReadConfigWithOverride("WaitRecordLength", 60000)
-WaitCapFrameXWrite  := ReadConfigWithOverride("WaitCapFrameXWrite", 5000)
-WaitMissionRestart  := ReadConfigWithOverride("WaitMissionRestart", 15000)
-WaitDCSRestart      := ReadConfigWithOverride("WaitDCSRestart", 30000)
+WaitVR := GetNestedValue(config, "configuration.waitTimes.vr", 15000)
+WaitMissionReady := GetNestedValue(config, "configuration.waitTimes.missionReady", 75000)
+WaitBeforeRecord := GetNestedValue(config, "configuration.waitTimes.beforeRecord", 3000)
+WaitRecordLength := GetNestedValue(config, "configuration.waitTimes.recordLength", 60000)
+WaitCapFrameXWrite := GetNestedValue(config, "configuration.waitTimes.capFrameXWrite", 5000)
+WaitMissionRestart := GetNestedValue(config, "configuration.waitTimes.missionRestart", 15000)
 
 ; Test configuration
-NumberOfRuns        := ReadConfigWithOverride("NumberOfRuns", 1)
-MaxRetries          := ReadConfigWithOverride("MaxRetries", 1)
+NumberOfRuns := GetNestedValue(config, "configuration.numberOfRuns", 1)
+MaxRetries := GetNestedValue(config, "configuration.maxRetries", 1)
 
 ; Time tracking variables (internal, not configurable)
 TotalTestCount := 0
@@ -98,18 +118,18 @@ CompletedTestCount := 0
 StartTime := ""
 BaseTimePerTest := 0
 
-; File paths - INI takes priority, then hardcoded defaults
-optionsLua          := ReadConfigWithOverride("optionsLua", EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua")
-dcsExe              := ReadConfigWithOverride("dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe")
-capframex           := ReadConfigWithOverride("capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe")
-capframexFolder     := ReadConfigWithOverride("capframexFolder", A_MyDocuments "\CapFrameX\Captures")
-pimax               := ReadConfigWithOverride("pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe")
-notepadpp           := ReadConfigWithOverride("notepadpp", "C:\Program Files\Notepad++\notepad++.exe")
+; File paths - expand environment variables
+optionsLua := ExpandEnvVars(GetNestedValue(config, "configuration.paths.optionsLua", EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua"))
+dcsExe := ExpandEnvVars(GetNestedValue(config, "configuration.paths.dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"))
+capframex := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe"))
+capframexFolder := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframexFolder", A_MyDocuments "\CapFrameX\Captures"))
+pimax := ExpandEnvVars(GetNestedValue(config, "configuration.paths.pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe"))
+notepadpp := ExpandEnvVars(GetNestedValue(config, "configuration.paths.notepadpp", "C:\Program Files\Notepad++\notepad++.exe"))
 
-logFile             := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
-checkpointFile      := A_ScriptDir "\4.1.4-checkpoint.txt"
+logFile := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
+checkpointFile := A_ScriptDir "\4.1.4-checkpoint.txt"
 
-; Mission path - command line override takes priority, then INI, then default
+; Mission path - command line override takes priority, then config, then default
 if (MissionOverride != "") {
     ; Command line mission override
     if (!RegExMatch(MissionOverride, "^[A-Za-z]:"))
@@ -117,15 +137,15 @@ if (MissionOverride != "") {
     else
         mission := MissionOverride
 } else {
-    missionFromIni := ReadConfigWithOverride("mission", "")
-    if (missionFromIni != "") {
-        ; If path doesn't start with drive letter, treat as relative to script folder
-        if (!RegExMatch(missionFromIni, "^[A-Za-z]:"))
-            mission := A_ScriptDir "\" missionFromIni
+    missionFromConfig := GetNestedValue(config, "configuration.mission", "")
+    if (missionFromConfig != "") {
+        ; If path doesn't start with drive letter, treat as relative to benchmark-missions folder
+        if (!RegExMatch(missionFromConfig, "^[A-Za-z]:"))
+            mission := A_ScriptDir "\benchmark-missions\" missionFromConfig
         else
-            mission := missionFromIni
+            mission := missionFromConfig
     } else {
-        mission := A_ScriptDir "\benchmark-missions\PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz"
+        mission := A_ScriptDir "\benchmark-missions\Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz"
     }
 }
 
@@ -153,7 +173,10 @@ DirCreate logDir
 
 LogWithTimestamp("")
 LogWithTimestamp("=== DCS BATCH BENCHMARK START ===")
-LogWithTimestamp("Configuration loaded from: " iniFile)
+LogWithTimestamp("Configuration loaded from: " configFile)
+if (FileExist(devConfigFile)) {
+    LogWithTimestamp("Dev overrides applied from: " devConfigFile)
+}
 LogWithTimestamp("--- Configuration Summary ---")
 LogWithTimestamp("  DryRun: " (DryRun ? "true" : "false"))
 LogWithTimestamp("  EnableVR: " (EnableVR ? "true" : "false") " | VRhardware: " VRhardware)
@@ -180,68 +203,69 @@ if (resumePoint.testIndex > 0) {
 }
 
 ; ==============================
-; PARSE INI FILE WITH RESTART METADATA
+; PARSE TESTS FROM JSON CONFIG
 ; ==============================
 
 configMap := Map()
 restartMap := Map()
 
-try {
-    sectionContent := IniRead(iniFile, "DCSOptionsTests")
-} catch as e {
-    LogWithTimestamp("ERROR: Failed to read INI file: " e.Message)
-    MsgBox "Failed to read INI file: " e.Message "`n`nExpected:`n" iniFile, "INI Error", 16
+; Get testsToRun array from config
+testsToRun := GetNestedValue(config, "testsToRun", [])
+
+if (!(testsToRun is Array) || testsToRun.Length = 0) {
+    LogWithTimestamp("ERROR: No tests configured in testsToRun array!")
+    MsgBox "No tests configured in testsToRun array!`n`nEdit testing-configuration.json to add tests.", "Config Error", 16
     ExitApp
 }
 
-LogWithTimestamp("Parsing INI File with Restart Metadata")
+LogWithTimestamp("Parsing JSON Tests Configuration")
 
-for line in StrSplit(sectionContent, "`n", "`r") {
-    line := Trim(line)
-    if (line = "" || SubStr(line, 1, 1) = "#" || !InStr(line, "="))
+; Get settings metadata from schema for restartRequired info
+settingsSchema := GetNestedValue(schema, "settings", Map())
+
+for testConfig in testsToRun {
+    ; Skip disabled tests
+    if (testConfig.Has("enabled") && !testConfig["enabled"])
         continue
     
-    ; Parse inline metadata format: Setting = value1,value2 | RestartRequired=DCS
-    restartRequired := "None"  ; Default value
+    setting := testConfig["setting"]
+    values := testConfig["values"]
     
-    if (InStr(line, "|")) {
-        parts := StrSplit(line, "|")
-        line := Trim(parts[1])  ; Setting and values part
-        metadataPart := Trim(parts[2])
+    ; Get restartRequired from schema, default to "DCS"
+    restartRequired := "DCS"
+    if (settingsSchema.Has(setting)) {
+        restartRequired := GetNestedValue(settingsSchema[setting], "restartRequired", "DCS")
+    }
+    
+    ; Convert values array to AHK array
+    valuesArray := []
+    for val in values {
+        valuesArray.Push(val)
+    }
+    
+    if (valuesArray.Length > 0) {
+        configMap[setting] := valuesArray
+        restartMap[setting] := restartRequired
         
-        ; Extract restart requirement
-        if (RegExMatch(metadataPart, "RestartRequired\s*=\s*(\w+)", &restartMatch)) {
-            restartRequired := restartMatch[1]
+        ; Format values for logging
+        valuesStr := ""
+        for val in valuesArray {
+            valuesStr .= val ","
         }
-    }
-    
-    ; Parse setting and values
-    parts := StrSplit(line, "=",, 2)
-    key := Trim(parts[1])
-    valuesStr := Trim(parts[2])
-    values := []
-    
-    for val in StrSplit(valuesStr, ",") {
-        val := Trim(val)
-        if (val != "")
-            values.Push(val)
-    }
-    
-    if (values.Length > 0) {
-        configMap[key] := values
-        restartMap[key] := restartRequired
-        LogWithTimestamp("Parsed setting: " key " | Values: " valuesStr " | RestartRequired: " restartRequired)
+        valuesStr := RTrim(valuesStr, ",")
+        LogWithTimestamp("Parsed setting: " setting " | Values: " valuesStr " | RestartRequired: " restartRequired)
     }
 }
 
 if (configMap.Count = 0) {
-    LogWithTimestamp("ERROR: No test configurations found in INI!")
-    MsgBox "No test configurations found in INI!", "Error", 16
-    ExitApp
+    LogWithTimestamp("INFO: No test variations configured - running baseline benchmark with current DCS settings")
+    TotalTestCount := 1  ; Baseline counts as 1 test
 }
 
 ; Calculate total tests and time estimates
-TotalTestCount := 0
+if (TotalTestCount = 0) {
+    TotalTestCount := 0
+}
 DcsRestartTests := 0
 GraphicsRefreshTests := 0
 
@@ -289,15 +313,17 @@ MainTestLoop() {
         if (resumePoint.testIndex > 0) {
             StartDCS()
         } else {
-            ; Check if first test requires DCS restart
+            ; Check if first test requires DCS restart (or if baseline run)
             firstTestRequiresDCSRestart := false
-            for setting, values in configMap {
-                restartType := restartMap[setting]
-                if (restartType = "DCS") {
-                    firstTestRequiresDCSRestart := true
-                    break
+            if (configMap.Count > 0) {
+                for setting, values in configMap {
+                    restartType := restartMap[setting]
+                    if (restartType = "DCS") {
+                        firstTestRequiresDCSRestart := true
+                        break
+                    }
+                    break  ; Only check first setting
                 }
-                break  ; Only check first setting
             }
             
             if (!firstTestRequiresDCSRestart) {
@@ -309,7 +335,31 @@ MainTestLoop() {
     }
 
     testIndex := 0
-
+    
+    ; Handle baseline run (no test variations)
+    if (configMap.Count = 0) {
+        LogWithTimestamp("=== RUNNING BASELINE BENCHMARK ===")
+        LogWithTimestamp("Using current DCS settings without modifications")
+        
+        ; Start DCS if not already running
+        if (!DryRun && !WinExist("ahk_exe DCS.exe")) {
+            StartDCS()
+        }
+        
+        ; Run baseline benchmark
+        Loop NumberOfRuns {
+            runNum := A_Index
+            LogWithTimestamp("--- RUNNING BASELINE Run " runNum "/" NumberOfRuns " ---")
+            isLastTest := (runNum = NumberOfRuns)
+            if (!RunBenchmark("BASELINE", "current", "None", isLastTest)) {
+                LogWithTimestamp("ERROR: Baseline benchmark failed")
+                break
+            }
+        }
+        
+        LogWithTimestamp("COMPLETED baseline benchmark")
+    } else {
+        ; Normal test loop with variations
         for setting, values in configMap {
             restartType := restartMap[setting]
             
@@ -378,6 +428,7 @@ MainTestLoop() {
 
             ;LogWithTimestamp("--- COMPLETED TESTS FOR: " setting " ---")
         }
+    }  ; End of baseline vs normal test loop
 
         ; ==============================
         ; FINAL CLEANUP
@@ -824,7 +875,7 @@ CloseDCS() {
 }
 
 RestartDCS() {
-    global WaitDCSRestart, MaxRetries, DryRun
+    global MaxRetries, DryRun
     
     LogWithTimestamp("Restarting DCS...")
     
@@ -961,40 +1012,29 @@ ExtractSettingValue(content, settingName) {
 }
 
 ; Build list of settings to track from configuration file
-; Only reads settings from the [DCSOptionsTests] section, not configuration sections
+; Reads settings from testsToRun array in JSON config
 BuildSettingsToTrack() {
-    global iniFile
+    global config
     settingsList := []
     
     try {
-        ; Read only the DCSOptionsTests section content using IniRead
-        sectionContent := IniRead(iniFile, "DCSOptionsTests")
+        ; Get testsToRun array from config
+        testsToRun := GetNestedValue(config, "testsToRun", [])
         
-        ; Parse each line for setting definitions
-        Loop Parse, sectionContent, "`n", "`r" {
-            line := Trim(A_LoopField)
-            ; Skip empty lines and comments
-            if (line == "" || SubStr(line, 1, 1) == "#")
-                continue
-            
-            ; Handle inline metadata format: Setting = value1,value2 | RestartRequired=DCS
-            if (InStr(line, "|")) {
-                parts := StrSplit(line, "|")
-                line := Trim(parts[1])  ; Only use the setting part before metadata
-            }
+        if (testsToRun is Array) {
+            for testConfig in testsToRun {
+                ; Skip disabled tests
+                if (testConfig.Has("enabled") && !testConfig["enabled"])
+                    continue
                 
-            ; Look for pattern: settingName = values
-            equalsPos := InStr(line, "=")
-            if (equalsPos) {
-                settingName := Trim(SubStr(line, 1, equalsPos - 1))
-                ; Only add non-empty setting names
+                settingName := testConfig["setting"]
                 if (settingName != "")
                     settingsList.Push(settingName)
             }
         }
                  
     } catch as e {
-        LogWithTimestamp("WARNING: Could not read DCSOptionsTests section, using empty settings list: " e.Message)
+        LogWithTimestamp("WARNING: Could not read testsToRun, using empty settings list: " e.Message)
     }
     
     return settingsList

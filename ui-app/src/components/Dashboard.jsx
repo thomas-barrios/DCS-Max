@@ -31,11 +31,11 @@ function Dashboard({ systemInfo, isAdmin, onNavigate }) {
       color: 'cyan'
     },
     {
-      title: 'Run Benchmark',
-      description: 'Test DCS performance with current settings',
+      title: 'Performance Testing',
+      description: 'Configure and run DCS benchmarks',
       icon: Activity,
       action: 'benchmark',
-      tab: 'benchmarking',
+      tab: 'performance',
       color: 'purple'
     },
     {

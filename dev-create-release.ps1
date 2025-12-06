@@ -276,14 +276,7 @@ if (Test-Path $benchmarkLog) {
     Set-Content -Path $benchmarkLog -Value "# DCS-Max Benchmark Log`r`n# Logs will appear here after running benchmarks."
 }
 
-# Remove DevelopmentOverrides section from testing config
-$testingConfig = Join-Path $releaseFolder "4-Performance-Testing\4.1.1-dcs-testing-configuration.ini"
-if (Test-Path $testingConfig) {
-    $content = Get-Content $testingConfig -Raw
-    # Remove the DevelopmentOverrides section (from header comment to the ending separator)
-    $content = $content -replace '(?s)#={10,}\r?\n# Development Overrides.*?\[DevelopmentOverrides\].*?#={10,}\r?\n', ''
-    Set-Content -Path $testingConfig -Value $content -NoNewline
-}
+
 
 # ============================================
 # CREATE ZIP

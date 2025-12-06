@@ -1,5 +1,55 @@
 # Changelog
 
+   06 dec 2025
+### [DCS-Max 1.3.0](https://github.com/thomas-barrios/dcs-max) - "Compact Testing" UI Optimization & Configuration Overhaul
+
+
+### DCS-Max Core
+
+
+Performance Testing & Configuration
+
+- Added: Compact Test Settings UI - Redesigned settings rows to reduce vertical space by ~60%
+  - Settings displayed in table-like rows with collapsible value selection
+  - Auto-expand on enable, auto-collapse on disable for better UX
+  - Impact level and restart requirement indicators
+  - Filter by performance impact (HIGH/MEDIUM/LOW/NONE) and restart requirement
+- Added: JSON-based configuration system (testing-configuration.json)
+  - Replaces legacy INI file format with structured JSON configuration
+  - Full support for VR settings, timing calibration, and mission selection
+- Changed: Performance impact colors - discrete text-only badges for clarity
+- Fixed: Empty status display on benchmark completion (now shows "Benchmark completed!" with green checkmark)
+- Removed: Legacy INI file fallback support - app now exclusively uses JSON configuration
+- Deprecated: 4.1.1-dcs-testing-configuration.ini (renamed to _DEPRECATED_4.1.1-dcs-testing-configuration.ini)
+
+
+DCS Settings Schema
+
+- Updated: All 51 graphics settings descriptions shortened to avoid truncation
+  - Descriptions now ~25-45 characters for optimal UI display
+  - Examples: "Level of detail for buildings and structures" → "Building and structure detail level"
+- Added: Full acronym names for technical settings
+  - SSAO: "SSAO (Screen Space Ambient Occlusion)"
+  - SSLR: "SSLR (Screen Space Local Reflections)"
+
+
+Benchmark Missions
+
+- Renamed: Mission files with aircraft-appropriate prefixes:
+  - PB-caucasus-ordzhonikidze → Su25-caucasus-ordzhonikidze (Su-25 Frogfoot)
+  - PB-caucasus-tibilisi → F18-caucasus-tibilisi (F/A-18C Hornet)
+  - PB-syria-telaviv → F18-syria-telaviv (F/A-18C Hornet)
+- Updated: All references across UI components and automation scripts
+
+
+Cleanup & Deprecation
+
+- Removed: test-json.ahk (unused test file)
+- Removed: ui-app/build.ps1 (unused build script)
+- Removed: INI file handling from PerformanceTesting, Benchmarking, and automation scripts
+- Added: Deprecation comments to legacy code paths
+
+
    04 dec 2025
 ### [DCS-Max 1.2.2](https://github.com/thomas-barrios/dcs-max) - "Viper" Bug Fixes & Automation Enhancements
 
@@ -39,7 +89,7 @@ Bug Fixes
 ### Benchmark Automation
 
 
-- Added: New single-player benchmark mission (PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz)
+- Added: New single-player benchmark mission (Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz)
 - Changed: Enhanced logging and debugging capabilities in 4.1.2-dcs-testing-automation.ahk
 - Changed: Improved settings verification workflow
 - Changed: Better file I/O retry mechanisms with exponential backoff

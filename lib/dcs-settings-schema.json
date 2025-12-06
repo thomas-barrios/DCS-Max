@@ -1,0 +1,1014 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "description": "DCS World Graphics Settings Schema for Performance Testing",
+  "lastUpdated": "2025-12-05",
+  "categories": [
+    { "id": "rendering", "name": "Image Quality", "icon": "monitor" },
+    { "id": "textures", "name": "Texture Resolution", "icon": "image" },
+    { "id": "lighting", "name": "Lighting & Shadows", "icon": "sun" },
+    { "id": "geometry", "name": "Geometry Detail", "icon": "box" },
+    { "id": "effects", "name": "Effects & Particles", "icon": "sparkles" },
+    { "id": "environment", "name": "Environmental", "icon": "tree" },
+    { "id": "display", "name": "Display & Resolution", "icon": "tv" },
+    { "id": "vr", "name": "VR Optimization", "icon": "glasses" }
+  ],
+  "settings": {
+    "AA": {
+      "displayName": "Anti-Aliasing",
+      "category": "rendering",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": ["OFF", "FXAA", "MSAA", "DLAA", "TAA"],
+      "default": "MSAA",
+      "description": "Reduces jagged edges on geometry and cockpit panels.",
+      "valueDescriptions": {
+        "OFF": "No anti-aliasing - maximum performance but severe aliasing on all geometry",
+        "FXAA": "Fast post-process AA - minimal performance impact (~2-5% FPS loss), may blur fine details",
+        "MSAA": "Multi-sample AA - moderate impact (~10-30%), best quality for geometric edges",
+        "DLAA": "Deep Learning AA - NVIDIA RTX only, good balance",
+        "TAA": "Temporal AA - good balance (~5-15%), may cause ghosting"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/293511-what-is-your-opinion-about-the-best-aa-configuration-in-the-dcs-settings-panel/",
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "MSAA": {
+      "displayName": "MSAA Level",
+      "category": "rendering",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3, 4],
+      "rangeLabels": ["Off", "2x", "4x", "8x", "16x"],
+      "default": 2,
+      "dependsOn": {
+        "setting": "AA",
+        "values": ["MSAA"],
+        "disabledMessage": "Requires Anti-Aliasing set to MSAA"
+      },
+      "description": "Multi-Sample AA level. Higher = smoother edges, more cost.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance but aliased edges",
+        "1": "2x - minimal impact (~5-10% FPS loss), reduces most obvious aliasing",
+        "2": "4x - balanced (~15-20% FPS loss), recommended for most users",
+        "3": "8x - significant impact (~25-35% FPS loss), best for high-end GPUs",
+        "4": "16x - extreme cost (~40-50% FPS loss), only viable on top-tier GPUs"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/293511-what-is-your-opinion-about-the-best-aa-configuration-in-the-dcs-settings-panel/",
+        "https://www.reddit.com/r/hoggit/comments/qrlaf4/for_vr_users_set_msaa_to_4x_and_turn_down_msaa/"
+      ]
+    },
+    "SSAO": {
+      "displayName": "SSAO (Screen Space Ambient Occlusion)",
+      "category": "lighting",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 1,
+      "description": "Adds realistic shadows in corners and creases.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance but flat lighting without depth shadows",
+        "1": "Enabled - adds realistic contact shadows (~10-15% FPS impact)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/",
+        "https://www.reddit.com/r/hoggit/comments/uscn5m/graphics_settings_msaassaa_ssao_sslr/"
+      ]
+    },
+    "SSLR": {
+      "displayName": "SSLR (Screen Space Local Reflections)",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Renders reflections on metallic and glass surfaces.",
+      "valueDescriptions": {
+        "0": "Disabled - major performance gain (~20-30% FPS boost) but removes reflections",
+        "1": "Enabled - adds realistic reflections; severe performance impact, especially in VR"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/261953-sslr-is-it-bugged-or-will-it-always-incur-a-50-performance-hit/"
+      ]
+    },
+    "SSS": {
+      "displayName": "Subsurface Scattering",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Light penetration through semi-transparent materials.",
+      "valueDescriptions": {
+        "0": "Disabled - eliminates stutters, significant performance gain (~15-25% FPS boost)",
+        "1": "Enabled - known to cause severe stuttering and frame drops"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/335481-severe-stuttering-caused-by-sss-29/"
+      ]
+    },
+    "BlurFlatShadows": {
+      "displayName": "Blur Flat Shadows",
+      "category": "lighting",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Blurs flat shadows for smoother edges.",
+      "valueDescriptions": {
+        "0": "Disabled - sharp shadow edges, maximum performance",
+        "1": "Enabled - smooth shadow transitions (~5-15% FPS loss)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/313092-vr-performance-significantly-50-reduction-affected-by-shadows-flat-or-higher/"
+      ]
+    },
+    "LODmult": {
+      "displayName": "Level of Detail Multiplier",
+      "category": "geometry",
+      "performanceImpact": "HIGH",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
+      "default": 1.0,
+      "description": "Object detail at distance. Lower = better performance.",
+      "sources": [
+        "https://forum.dcs.world/topic/345129-dynamic-adjustment-of-lodmult-setting-based-on-mirrors-position-in-cockpit/"
+      ]
+    },
+    "shadows": {
+      "displayName": "Shadow Quality",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3, 4],
+      "rangeLabels": ["Off", "Low", "Medium", "High", "Ultra"],
+      "default": 2,
+      "description": "Overall shadow quality and complexity.",
+      "valueDescriptions": {
+        "0": "Off - maximum performance, flat unrealistic lighting",
+        "1": "Low - good performance (~10-15% FPS loss), simple shadow maps",
+        "2": "Medium - balanced (~20-30% FPS loss), recommended",
+        "3": "High - significant cost (~35-50% FPS loss), detailed shadows",
+        "4": "Ultra - extreme impact (~50-70% FPS loss), best quality"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/zymx0z/vr_perf_and_28_shadows_what_i_have_found_so_far/"
+      ]
+    },
+    "flatTerrainShadows": {
+      "displayName": "Flat Terrain Shadows",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2],
+      "rangeLabels": ["Off", "Flat", "Default"],
+      "default": 1,
+      "description": "Shadow quality for terrain and ground objects.",
+      "valueDescriptions": {
+        "0": "Off - maximum performance, no terrain shadows",
+        "1": "Flat - moderate performance (~15-25% FPS loss), simple shadows",
+        "2": "Default - significant cost (~30-45% FPS loss), realistic lighting"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/313092-vr-performance-significantly-50-reduction-affected-by-shadows-flat-or-higher/"
+      ]
+    },
+    "secondaryShadows": {
+      "displayName": "Secondary Shadows",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Shadows from secondary light sources.",
+      "valueDescriptions": {
+        "0": "Disabled - major performance gain (~15-25% FPS boost), recommended",
+        "1": "Enabled - severe performance cost, subtle lighting improvements"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/utbomv/does_anyone_know_off_hand_what_does_the_secondary/"
+      ]
+    },
+    "shadowTree": {
+      "displayName": "Tree Shadows",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": false,
+      "description": "Tree shadow casting for forest shadows.",
+      "valueDescriptions": {
+        "false": "Disabled - major performance gain (~20-35% FPS boost in forests)",
+        "true": "Enabled - severe impact in wooded areas, realistic forest lighting"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/366205-performance-trees-huge-performance-hit-especially-up-close/"
+      ]
+    },
+    "cockpitGI": {
+      "displayName": "Cockpit Global Illumination",
+      "category": "lighting",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 1,
+      "description": "Realistic lighting inside cockpits.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance, flat cockpit lighting",
+        "1": "Enabled - moderate cost (~8-15% FPS loss), realistic cockpit shadows"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "textures": {
+      "displayName": "Texture Quality",
+      "category": "textures",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Low", "Medium", "High", "Ultra"],
+      "default": 2,
+      "description": "Texture resolution for aircraft and objects.",
+      "valueDescriptions": {
+        "0": "Low - maximum performance, reduced VRAM (~3GB savings), blurry details",
+        "1": "Medium - balanced (~10-20% FPS loss), good cockpit readability",
+        "2": "High - moderate cost (~20-35% FPS loss), crisp details",
+        "3": "Ultra - significant impact (~35-50% FPS loss), extreme VRAM (~8GB+)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/323252-dcs-optimized-textures/"
+      ]
+    },
+    "terrainTextures": {
+      "displayName": "Terrain Texture Quality",
+      "category": "textures",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": ["low", "medium", "high", "max"],
+      "default": "medium",
+      "description": "Ground terrain texture quality.",
+      "valueDescriptions": {
+        "low": "Low-resolution - maximum performance, reduced VRAM (~2GB savings)",
+        "medium": "Standard - balanced (~15-25% FPS loss), good quality",
+        "high": "High-resolution - significant cost (~30-45% FPS loss), ~4GB VRAM",
+        "max": "Maximum - extreme impact (~50-70% FPS loss), ~6GB+ VRAM"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/330965-terrain-textures-high-destroys-framerates/"
+      ]
+    },
+    "anisotropy": {
+      "displayName": "Anisotropic Filtering",
+      "category": "textures",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [1, 2, 4, 8, 16],
+      "default": 8,
+      "description": "Texture quality at distance and angles.",
+      "valueDescriptions": {
+        "1": "No filtering - blurry textures at distance, maximum performance",
+        "2": "2x - slight improvement, minimal cost (~2-3% FPS loss)",
+        "4": "4x - balanced (~5-8% FPS loss), good for mid-range",
+        "8": "8x - good quality (~10-12% FPS loss), recommended",
+        "16": "16x - maximum quality (~15-20% FPS loss), for high-end systems"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "effects": {
+      "displayName": "Effects Quality",
+      "category": "effects",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Low", "Medium", "High", "Ultra"],
+      "default": 2,
+      "description": "Explosions, smoke, fire, and particles.",
+      "valueDescriptions": {
+        "0": "Low - maximum performance, basic explosions and smoke",
+        "1": "Medium - balanced (~10-15% FPS loss), good visual feedback",
+        "2": "High - significant cost (~20-30% FPS loss), detailed effects",
+        "3": "Ultra - extreme impact (~35-50% FPS loss), heavy in combat"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "clouds": {
+      "displayName": "Cloud Quality",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Low", "Standard", "High", "Ultra"],
+      "default": 1,
+      "description": "Cloud rendering quality.",
+      "valueDescriptions": {
+        "0": "Low - maximum performance, flat 2D cloud textures",
+        "1": "Standard - balanced (~10-15% FPS loss), 3D volumetric clouds",
+        "2": "High - significant cost (~20-30% FPS loss), detailed volumetric",
+        "3": "Ultra - extreme impact (~35-50% FPS loss), maximum detail"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "water": {
+      "displayName": "Water Quality",
+      "category": "environment",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Low", "Medium", "High", "Ultra"],
+      "default": 1,
+      "description": "Water reflections and wave dynamics.",
+      "valueDescriptions": {
+        "0": "Low - maximum performance, flat water surface",
+        "1": "Medium - balanced (~8-15% FPS loss), basic reflections",
+        "2": "High - moderate cost (~15-25% FPS loss), detailed reflections",
+        "3": "Ultra - significant impact (~25-40% FPS loss), full simulation"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/323990-water-qualitiy-cost-much-performance-even-if-there-is-no-water-around/"
+      ]
+    },
+    "lights": {
+      "displayName": "Lighting Quality",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Low", "Medium", "High", "Ultra"],
+      "default": 2,
+      "description": "Dynamic lighting and aircraft lights.",
+      "valueDescriptions": {
+        "0": "Low - maximum performance, basic light sources",
+        "1": "Medium - balanced (~5-10% FPS loss), good night capability",
+        "2": "High - moderate cost (~15-20% FPS loss), realistic bloom",
+        "3": "Ultra - significant impact (~25-35% FPS loss), full dynamic lighting"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "volumetricLights": {
+      "displayName": "Volumetric Lights",
+      "category": "lighting",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Light shafts and god rays.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance, flat lighting",
+        "1": "Enabled - significant cost (~15-30% FPS loss), realistic light rays"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "heatBlr": {
+      "displayName": "Heat Blur",
+      "category": "effects",
+      "performanceImpact": "LOW",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 1,
+      "description": "Heat distortion from engine exhausts.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance, unrealistic hot surfaces",
+        "1": "Enabled - minor cost (~3-8% FPS loss), realistic heat distortion"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "rainDroplets": {
+      "displayName": "Rain Droplets",
+      "category": "effects",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 1,
+      "description": "Rain droplets on canopy.",
+      "valueDescriptions": {
+        "0": "Disabled - maximum performance in weather",
+        "1": "Enabled - moderate cost (~10-20% FPS loss in rain)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/325155-rain-performance/"
+      ]
+    },
+    "LensEffects": {
+      "displayName": "Lens Effects",
+      "category": "effects",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Off", "Dirt", "Flare", "Dirt + Flare"],
+      "default": 3,
+      "description": "Camera lens dirt and flare effects.",
+      "valueDescriptions": {
+        "0": "Off - no lens effects, more realistic pilot's-eye view",
+        "1": "Dirt - camera lens dirt/smudges effect",
+        "2": "Flare - lens flare when looking at sun",
+        "3": "Dirt + Flare - both effects enabled (default)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/240243-new-setting-in-dcs-what-do-these-do/"
+      ]
+    },
+    "bloom": {
+      "displayName": "Bloom",
+      "category": "effects",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": true,
+      "description": "Light halos around bright objects.",
+      "valueDescriptions": {
+        "false": "Disabled - maximum VR performance, crisp visuals",
+        "true": "Enabled - moderate cost (~5-15% FPS loss in VR)"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/1hapew9/i_turned_off_bloom_with_a_mod_and_the_game_looks/"
+      ]
+    },
+    "ColorGradingLUT": {
+      "displayName": "Color Grading",
+      "category": "effects",
+      "performanceImpact": "LOW",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 1,
+      "description": "Cinematic color correction.",
+      "valueDescriptions": {
+        "0": "Disabled - natural colors, no enhancement",
+        "1": "Enabled - enhanced contrast and saturation (~2-5% FPS loss)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/240243-new-setting-in-dcs-what-do-these-do/"
+      ]
+    },
+    "DOF": {
+      "displayName": "Depth of Field",
+      "category": "effects",
+      "performanceImpact": "NONE",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Blurs objects outside focal plane.",
+      "valueDescriptions": {
+        "0": "Disabled - all objects in focus, more realistic pilot vision",
+        "1": "Enabled - background blur (~5-20% FPS loss in external views)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "motionBlur": {
+      "displayName": "Motion Blur",
+      "category": "effects",
+      "performanceImpact": "NONE",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Motion blur during rapid movements.",
+      "valueDescriptions": {
+        "0": "Disabled - crisp movement, better for target tracking",
+        "1": "Enabled - cinematic effect, may cause motion sickness"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/mnor6y/do_you_guys_use_motion_blur_does_it_make_a/"
+      ]
+    },
+    "forestDetailsFactor": {
+      "displayName": "Forest Details Factor",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      "default": 0.5,
+      "description": "Forest and tree detail. Major VR impact.",
+      "valueDescriptions": {
+        "0.1": "Minimal - maximum performance, barren forests",
+        "0.3": "Low - good performance (~10-15% FPS loss)",
+        "0.6": "Standard - balanced (~25-35% FPS loss)",
+        "1.0": "Full - extreme impact (~50-70% FPS loss), severe VR impact"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/1dx8vvm/dcs_in_vr_is_forest_details_factor_the_villain/",
+        "https://forum.dcs.world/topic/366205-performance-trees-huge-performance-hit-especially-up-close/"
+      ]
+    },
+    "forestDistanceFactor": {
+      "displayName": "Forest Distance Factor",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      "default": 0.6,
+      "description": "Max distance for detailed forests.",
+      "valueDescriptions": {
+        "0.3": "Short - maximum performance, trees pop-in close",
+        "0.5": "Moderate - good performance (~10-20% FPS loss)",
+        "0.8": "Standard - balanced (~20-30% FPS loss)",
+        "1.0": "Maximum - significant cost (~35-50% FPS loss)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/366205-performance-trees-huge-performance-hit-especially-up-close/"
+      ]
+    },
+    "sceneryDetailsFactor": {
+      "displayName": "Scenery Details Factor",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      "default": 0.5,
+      "description": "Building and structure detail level.",
+      "sources": [
+        "https://forum.dcs.world/topic/366205-performance-trees-huge-performance-hit-especially-up-close/"
+      ]
+    },
+    "clutterMaxDistance": {
+      "displayName": "Clutter Max Distance",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0, 100, 200, 300, 400, 500, 650, 800, 1000, 1200, 1500],
+      "default": 650,
+      "description": "Max distance for grass, rocks, debris.",
+      "valueDescriptions": {
+        "0": "None - maximum performance, barren ground",
+        "300": "Close only - good performance (~5-10% FPS loss)",
+        "650": "Moderate - balanced (~15-20% FPS loss)",
+        "1000": "Extended - significant cost (~25-35% FPS loss)",
+        "1500": "Maximum - extreme impact (~40-60% FPS loss)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/366205-performance-trees-huge-performance-hit-especially-up-close/"
+      ]
+    },
+    "civTraffic": {
+      "displayName": "Civilian Traffic",
+      "category": "environment",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Off", "Low", "Medium", "High"],
+      "default": 1,
+      "description": "Civilian traffic density. CPU intensive.",
+      "valueDescriptions": {
+        "0": "None - maximum CPU performance, empty roads",
+        "1": "Low - minimal CPU impact (~2-5% loss), sparse traffic",
+        "2": "Medium - moderate load (~8-15% loss), realistic levels",
+        "3": "High - significant CPU impact (~15-25% loss), busy traffic"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/1hibg21/huge_thx_to_everyone_for_giving_me_responsesi_got/"
+      ]
+    },
+    "chimneySmokeDensity": {
+      "displayName": "Chimney Smoke Density",
+      "category": "environment",
+      "performanceImpact": "LOW",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "default": 5,
+      "description": "Industrial chimney smoke density.",
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "canopyReflections": {
+      "displayName": "Canopy Reflections",
+      "category": "effects",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      "default": 0.5,
+      "description": "Canopy glass reflection intensity.",
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "visibRange": {
+      "displayName": "Visibility Range",
+      "category": "display",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": ["Low", "Medium", "High", "Ultra"],
+      "default": "High",
+      "description": "Maximum visibility draw distance.",
+      "valueDescriptions": {
+        "Low": "~10km - extreme FPS gain, aggressive pop-in",
+        "Medium": "~30km - good for low-end, late target acquisition",
+        "High": "~80km - sweet spot for most GPUs, recommended",
+        "Ultra": "~140km - max detail, ~15-25% frame-time penalty"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "preloadRadius": {
+      "displayName": "Preload Radius",
+      "category": "display",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [100, 5000, 10000, 20000, 30000, 40000, 50000, 60000, 80000, 100000, 120000, 150000],
+      "default": 60000,
+      "description": "Terrain preload distance. Affects stutters.",
+      "valueDescriptions": {
+        "30000": "Short - reduced loading, more frequent stutters",
+        "60000": "Balanced - recommended for most systems",
+        "100000": "Extended - longer loading, fewer stutters",
+        "150000": "Maximum - very long loading, requires high RAM"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/270364-preload-radius/"
+      ]
+    },
+    "maxFPS": {
+      "displayName": "Max FPS",
+      "category": "display",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [30, 60, 75, 90, 120, 144, 165, 240, 300],
+      "default": 300,
+      "description": "Maximum frame rate limit.",
+      "sources": [
+        "https://forum.dcs.world/topic/225623-dcs-word-max-fps-engine-cap/"
+      ]
+    },
+    "sync": {
+      "displayName": "V-Sync",
+      "category": "display",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": false,
+      "description": "Prevents screen tearing.",
+      "valueDescriptions": {
+        "false": "Disabled - maximum FPS, possible tearing, lower input latency",
+        "true": "Enabled - eliminates tearing, higher input latency"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/243476-v-sync-or-not/"
+      ]
+    },
+    "fullScreen": {
+      "displayName": "Fullscreen",
+      "category": "display",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Windowed", "Fullscreen"],
+      "default": true,
+      "description": "Fullscreen for better GPU optimization.",
+      "valueDescriptions": {
+        "false": "Windowed - slight performance loss (~3-8%), easier alt-tabbing",
+        "true": "Fullscreen - maximum performance, lower input latency"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/263310-make-sure-youre-running-in-fullscreen/"
+      ]
+    },
+    "Upscaling": {
+      "displayName": "Upscaling Method",
+      "category": "rendering",
+      "performanceImpact": "LOW",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": ["OFF", "DLSS", "FSR"],
+      "default": "OFF",
+      "dependsOn": {
+        "setting": "AA",
+        "values": ["DLAA", "TAA"],
+        "disabledMessage": "Requires Anti-Aliasing set to DLAA or TAA (MSAA disables upscaling)"
+      },
+      "description": "DLSS/FSR upscaling for performance.",
+      "valueDescriptions": {
+        "OFF": "Native resolution, full quality, baseline performance",
+        "DLSS": "NVIDIA DLSS - significant boost (~30-60%), requires RTX",
+        "FSR": "AMD FSR - moderate boost (~20-40%), works on most GPUs"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/369628-dcs-2913-dlss-benchmarks-in-2d-and-vr-rtx-hdr/"
+      ]
+    },
+    "DLSS_PerfQuality": {
+      "displayName": "DLSS Quality",
+      "category": "rendering",
+      "performanceImpact": "LOW",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "enum",
+      "range": [0, 1, 2, 3],
+      "rangeLabels": ["Ultra Performance", "Performance", "Balanced", "Quality"],
+      "default": 2,
+      "dependsOn": {
+        "setting": "Upscaling",
+        "values": ["DLSS"],
+        "disabledMessage": "Requires Upscaling Method set to DLSS"
+      },
+      "description": "DLSS quality vs performance balance.",
+      "valueDescriptions": {
+        "0": "Ultra Performance - max FPS (~60-80% boost), lowest quality",
+        "1": "Performance - high FPS (~40-60% boost), good for 4K/VR",
+        "2": "Balanced - moderate FPS (~30-45% boost), recommended",
+        "3": "Quality - minimal FPS (~20-30% boost), best quality"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/369628-dcs-2913-dlss-benchmarks-in-2d-and-vr-rtx-hdr/"
+      ]
+    },
+    "scaling": {
+      "displayName": "Resolution Scaling",
+      "category": "rendering",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "number",
+      "range": [0.25, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+      "default": 1.0,
+      "description": "Render resolution multiplier.",
+      "valueDescriptions": {
+        "0.5": "50% - major performance gain (~100% FPS boost), noticeable quality loss",
+        "0.75": "75% - good performance gain (~30-50% FPS boost), popular VR setting",
+        "1.0": "100% - native resolution, baseline",
+        "1.5": "150% - improved quality (~30-40% FPS loss), high-end only"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "sharpening": {
+      "displayName": "Sharpening",
+      "category": "rendering",
+      "performanceImpact": "LOW",
+      "restartRequired": "None",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Off", "On"],
+      "default": 0,
+      "description": "Post-process sharpening for edges.",
+      "sources": [
+        "https://forum.dcs.world/topic/336175-dlss-sharpness-slider-settings/"
+      ]
+    },
+    "useDeferredShading": {
+      "displayName": "Deferred Shading",
+      "category": "lighting",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "graphics",
+      "type": "boolean",
+      "range": [0, 1],
+      "rangeLabels": ["Forward", "Deferred"],
+      "default": 1,
+      "description": "Lighting rendering pipeline.",
+      "valueDescriptions": {
+        "0": "Forward - better in simple scenes, lower VRAM",
+        "1": "Deferred - improved lighting (~5-15% cost), better for complex lights"
+      },
+      "sources": [
+        "https://forums.mudspike.com/t/dcs-world-all-things-vr/4914"
+      ]
+    },
+    "pixel_density": {
+      "displayName": "VR Pixel Density",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "number",
+      "range": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5],
+      "default": 1.0,
+      "description": "VR rendering resolution.",
+      "valueDescriptions": {
+        "0.7": "Low - maximum VR performance (~40% FPS boost), reduced clarity",
+        "1.0": "Native - balanced, standard headset resolution",
+        "1.3": "High - improved clarity (~30% cost), better text readability",
+        "1.5": "Maximum - best quality (~50% cost), top-tier systems only"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/143157-understanding-pixel-density-making-sense-of-it/"
+      ]
+    },
+    "msaaMaskSize": {
+      "displayName": "VR MSAA Mask Size",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "number",
+      "range": [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0],
+      "default": 0.5,
+      "description": "VR MSAA area. Lower = better performance.",
+      "valueDescriptions": {
+        "0.25": "Minimal - max performance (~40% GPU savings), aliasing in periphery",
+        "0.5": "Balanced - recommended for most VR users (~20% savings)",
+        "0.75": "Extended - moderate cost, better peripheral quality",
+        "1.0": "Full - maximum quality, significant impact"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/qrlaf4/for_vr_users_set_msaa_to_4x_and_turn_down_msaa/"
+      ]
+    },
+    "enableHMDMask": {
+      "displayName": "Enable HMD Mask",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": true,
+      "description": "Skip rendering outside VR visible area.",
+      "valueDescriptions": {
+        "false": "Disabled - wastes performance on invisible pixels",
+        "true": "Enabled - significant performance gain (~10-20% FPS boost)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/348555-vr-enable-hmd-mask-is-this-still-useful/"
+      ]
+    },
+    "openxr_eyeGaze": {
+      "displayName": "OpenXR Eye Gaze",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": false,
+      "description": "Eye tracking for foveated rendering.",
+      "valueDescriptions": {
+        "false": "Disabled - standard rendering, uniform quality",
+        "true": "Enabled - foveated rendering (~20-40% FPS boost)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/353594-vrs-foveated-rendering-openxr-toolkit-eye-tracking-working-after-last-dcs-update/"
+      ]
+    },
+    "openxr_quadView": {
+      "displayName": "OpenXR Quad View",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Off", "On"],
+      "default": false,
+      "description": "Quad views for foveated rendering.",
+      "valueDescriptions": {
+        "false": "Disabled - standard dual view, higher GPU load",
+        "true": "Enabled - advanced foveated (~30-50% FPS boost)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/354164-which-openxr-settings-to-useor-not-w-quadviews/"
+      ]
+    },
+    "enable": {
+      "displayName": "Enable VR",
+      "category": "vr",
+      "performanceImpact": "HIGH",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["2D Mode", "VR Mode"],
+      "default": false,
+      "description": "Enable VR mode.",
+      "valueDescriptions": {
+        "false": "2D mode - standard monitor rendering",
+        "true": "VR mode - stereo rendering (~50% performance cost)"
+      },
+      "sources": [
+        "https://forum.dcs.world/topic/277521-dcs-27-graphics-options-recommendations/"
+      ]
+    },
+    "mirror_use_DCS_resolution": {
+      "displayName": "VR Mirror DCS Resolution",
+      "category": "vr",
+      "performanceImpact": "MEDIUM",
+      "restartRequired": "DCS",
+      "optionsPath": "VR",
+      "type": "boolean",
+      "range": [false, true],
+      "rangeLabels": ["Headset Res", "DCS Res"],
+      "default": true,
+      "description": "Use game resolution for VR mirror.",
+      "valueDescriptions": {
+        "false": "Headset resolution - higher quality mirror, increased cost",
+        "true": "DCS resolution - optimized performance, recommended"
+      },
+      "sources": [
+        "https://www.reddit.com/r/hoggit/comments/1cyr5ip/reminder_normal_vr_users_keep_use_dcs_system/"
+      ]
+    }
+  }
+}

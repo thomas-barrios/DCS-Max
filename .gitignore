@@ -42,6 +42,10 @@ config.local.*
 settings.local.*
 *-local.*
 
+# Development override files (machine-specific settings)
+testing-configuration.dev.json
+*.dev.json
+
 # Personal data that shouldn't be shared
 *-personal.*
 *-private.*

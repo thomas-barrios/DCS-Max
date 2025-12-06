@@ -231,6 +231,14 @@ namespace DcsMaxLauncher
                         });
                     },
 
+                    // JSON Operations
+                    readJsonConfig: function(jsonPath) {
+                        return this._invoke('readJsonConfig', [jsonPath]);
+                    },
+                    writeJsonConfig: function(jsonPath, data) {
+                        return this._invoke('writeJsonConfig', [jsonPath, JSON.stringify(data)]);
+                    },
+
                     // INI Operations
                     readIniConfig: function(iniPath) {
                         return this._invoke('readIniConfig', [iniPath]);
@@ -339,6 +347,22 @@ namespace DcsMaxLauncher
                         return this._invoke('writeSettingsPaths', [paths]);
                     },
 
+                    // DCS Options.lua Operations
+                    readOptionsLua: function(optionsLuaPath) {
+                        return this._invoke('readOptionsLua', [optionsLuaPath]);
+                    },
+
+                    // Calibration Wizard Operations
+                    launchVRSoftware: function(hardware, exePath) {
+                        return this._invoke('launchVRSoftware', [hardware, exePath]);
+                    },
+                    launchDCSWithMission: function(dcsExePath, missionPath) {
+                        return this._invoke('launchDCSWithMission', [dcsExePath, missionPath]);
+                    },
+                    sendMissionRestart: function() {
+                        return this._invoke('sendMissionRestart', []);
+                    },
+
                     // Remove listeners (no-op for compatibility)
                     removeAllListeners: function(channel) {}
                 };
@@ -394,6 +418,14 @@ namespace DcsMaxLauncher
 
                 switch (method)
                 {
+                    case "readJsonConfig":
+                        result = await ReadJsonConfig(args[0] != null ? args[0].Value<string>() : null);
+                        break;
+                    case "writeJsonConfig":
+                        result = await WriteJsonConfig(
+                            args[0] != null ? args[0].Value<string>() : null,
+                            args[1] != null ? args[1].Value<string>() : null);
+                        break;
                     case "readIniConfig":
                         result = await ReadIniConfig(args[0] != null ? args[0].Value<string>() : null);
                         break;
@@ -479,6 +511,22 @@ namespace DcsMaxLauncher
                     case "stopWatchLog":
                         StopWatchingLog();
                         return; // No response needed
+                    case "readOptionsLua":
+                        result = await ReadOptionsLua(args[0] != null ? args[0].Value<string>() : null);
+                        break;
+                    case "launchVRSoftware":
+                        result = LaunchVRSoftware(
+                            args[0] != null ? args[0].Value<string>() : null,
+                            args[1] != null ? args[1].Value<string>() : null);
+                        break;
+                    case "launchDCSWithMission":
+                        result = LaunchDCSWithMission(
+                            args[0] != null ? args[0].Value<string>() : null,
+                            args[1] != null ? args[1].Value<string>() : null);
+                        break;
+                    case "sendMissionRestart":
+                        result = SendMissionRestart();
+                        break;
                     default:
                         result = new { success = false, error = "Unknown method: " + method };
                         break;
@@ -531,6 +579,42 @@ namespace DcsMaxLauncher
 
         // ========== API Methods ==========
 
+        private async Task<object> ReadJsonConfig(string jsonPath)
+        {
+            try
+            {
+                string fullPath = Path.Combine(projectRoot, jsonPath);
+                if (!File.Exists(fullPath))
+                {
+                    return new { success = false, error = "File not found: " + jsonPath };
+                }
+                string content = await Task.Run(delegate { return File.ReadAllText(fullPath); });
+                var data = JObject.Parse(content);
+                return new { success = true, content = content, data = data };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private async Task<object> WriteJsonConfig(string jsonPath, string jsonContent)
+        {
+            try
+            {
+                string fullPath = Path.Combine(projectRoot, jsonPath);
+                // Format JSON nicely
+                var obj = JObject.Parse(jsonContent);
+                string formatted = obj.ToString(Newtonsoft.Json.Formatting.Indented);
+                await Task.Run(delegate { File.WriteAllText(fullPath, formatted); });
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
         private async Task<object> ReadIniConfig(string iniPath)
         {
             try
@@ -567,6 +651,93 @@ namespace DcsMaxLauncher
             {
                 return new { success = false, error = ex.Message };
             }
+        }
+
+        // Read and parse DCS options.lua file to extract current settings
+        private async Task<object> ReadOptionsLua(string optionsLuaPath)
+        {
+            try
+            {
+                // Expand environment variables in path
+                string expandedPath = Environment.ExpandEnvironmentVariables(optionsLuaPath ?? "");
+                
+                if (string.IsNullOrEmpty(expandedPath))
+                {
+                    return new { success = false, error = "No options.lua path provided" };
+                }
+                
+                if (!File.Exists(expandedPath))
+                {
+                    return new { success = false, error = "File not found: " + expandedPath };
+                }
+                
+                string content = await Task.Run(delegate { return File.ReadAllText(expandedPath); });
+                
+                // Parse Lua settings into a dictionary
+                var settings = new Dictionary<string, object>();
+                
+                // Match patterns like: ["settingName"] = value,
+                var regex = new System.Text.RegularExpressions.Regex(
+                    @"\[""([^""]+)""\]\s*=\s*([^,\r\n}]+)",
+                    System.Text.RegularExpressions.RegexOptions.Multiline
+                );
+                
+                var matches = regex.Matches(content);
+                foreach (System.Text.RegularExpressions.Match match in matches)
+                {
+                    if (match.Groups.Count >= 3)
+                    {
+                        string key = match.Groups[1].Value.Trim();
+                        string rawValue = match.Groups[2].Value.Trim();
+                        
+                        // Parse the value (handle strings, numbers, booleans)
+                        object parsedValue = ParseLuaValue(rawValue);
+                        settings[key] = parsedValue;
+                    }
+                }
+                
+                return new { 
+                    success = true, 
+                    path = expandedPath,
+                    settings = settings 
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+        
+        private object ParseLuaValue(string rawValue)
+        {
+            // Remove trailing comma if present
+            rawValue = rawValue.TrimEnd(',').Trim();
+            
+            // Check for quoted string
+            if (rawValue.StartsWith("\"") && rawValue.EndsWith("\""))
+            {
+                return rawValue.Substring(1, rawValue.Length - 2);
+            }
+            
+            // Check for boolean
+            if (rawValue.Equals("true", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (rawValue.Equals("false", StringComparison.OrdinalIgnoreCase))
+                return false;
+            
+            // Check for number (integer or float)
+            double numValue;
+            if (double.TryParse(rawValue, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out numValue))
+            {
+                // Return as int if it's a whole number
+                if (numValue == Math.Floor(numValue) && numValue >= int.MinValue && numValue <= int.MaxValue)
+                    return (int)numValue;
+                return numValue;
+            }
+            
+            // Return as-is (could be a Lua expression or other type)
+            return rawValue;
         }
 
         // ========== Performance Optimization Config Methods (O&O ShutUp10-style format) ==========
@@ -840,6 +1011,225 @@ namespace DcsMaxLauncher
                 return new { success = false, error = ex.Message };
             }
         }
+
+        private object LaunchVRSoftware(string hardware, string exePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    return new { success = false, error = "VR software path not specified" };
+                }
+
+                // Expand environment variables
+                exePath = Environment.ExpandEnvironmentVariables(exePath);
+
+                if (!File.Exists(exePath))
+                {
+                    return new { success = false, error = "VR software not found: " + exePath };
+                }
+
+                // Check if already running based on hardware type
+                string processName = "";
+                if (hardware == "Pimax")
+                {
+                    processName = "PimaxClient";
+                }
+                else if (hardware == "SteamVR")
+                {
+                    processName = "vrserver";
+                }
+
+                if (!string.IsNullOrEmpty(processName))
+                {
+                    var existing = Process.GetProcessesByName(processName);
+                    if (existing.Length > 0)
+                    {
+                        return new { success = true, alreadyRunning = true, message = hardware + " already running" };
+                    }
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+                return new { success = true, alreadyRunning = false };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private object LaunchDCSWithMission(string dcsExePath, string missionPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(dcsExePath))
+                {
+                    return new { success = false, error = "DCS path not specified" };
+                }
+
+                // Expand environment variables
+                dcsExePath = Environment.ExpandEnvironmentVariables(dcsExePath);
+                if (!string.IsNullOrEmpty(missionPath))
+                {
+                    missionPath = Environment.ExpandEnvironmentVariables(missionPath);
+                }
+
+                if (!File.Exists(dcsExePath))
+                {
+                    return new { success = false, error = "DCS not found: " + dcsExePath };
+                }
+
+                // Check if DCS is already running
+                var existing = Process.GetProcessesByName("DCS");
+                if (existing.Length > 0)
+                {
+                    return new { success = true, alreadyRunning = true, message = "DCS already running" };
+                }
+
+                string arguments = "";
+                if (!string.IsNullOrEmpty(missionPath))
+                {
+                    arguments = string.Format("--mission \"{0}\"", missionPath);
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = dcsExePath,
+                    Arguments = arguments,
+                    UseShellExecute = true
+                });
+                return new { success = true, alreadyRunning = false };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private object SendMissionRestart()
+        {
+            try
+            {
+                // Find DCS window
+                var dcsProcess = Process.GetProcessesByName("DCS").FirstOrDefault();
+                if (dcsProcess == null)
+                {
+                    return new { success = false, error = "DCS is not running" };
+                }
+
+                IntPtr hwnd = dcsProcess.MainWindowHandle;
+                if (hwnd == IntPtr.Zero)
+                {
+                    return new { success = false, error = "Could not find DCS window" };
+                }
+
+                // Use AutoHotkey to send Shift+R - most reliable for games
+                // Create a temporary AHK script
+                string tempScript = Path.Combine(Path.GetTempPath(), "dcs_restart.ahk");
+                string ahkScript = @"
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Wait a moment for this script to start
+Sleep 200
+
+; Activate DCS window
+if WinExist(""ahk_exe DCS.exe"") {
+    WinActivate
+    WinWaitActive ""ahk_exe DCS.exe"",, 2
+    Sleep 300
+    
+    ; Send Shift+R
+    Send ""+r""
+}
+
+ExitApp
+";
+                File.WriteAllText(tempScript, ahkScript);
+
+                // Find AutoHotkey
+                string ahkPath = @"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe";
+                if (!File.Exists(ahkPath))
+                {
+                    ahkPath = @"C:\Program Files\AutoHotkey\AutoHotkey.exe";
+                }
+                if (!File.Exists(ahkPath))
+                {
+                    // Try to find via registry or common paths
+                    string[] possiblePaths = new string[]
+                    {
+                        @"C:\Program Files\AutoHotkey\v2\AutoHotkey32.exe",
+                        @"C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe",
+                        Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Programs\AutoHotkey\v2\AutoHotkey64.exe")
+                    };
+                    foreach (var path in possiblePaths)
+                    {
+                        if (File.Exists(path))
+                        {
+                            ahkPath = path;
+                            break;
+                        }
+                    }
+                }
+
+                if (!File.Exists(ahkPath))
+                {
+                    // Fallback: delete temp file and return error
+                    try { File.Delete(tempScript); } catch { }
+                    return new { success = false, error = "AutoHotkey not found. Please install AutoHotkey v2." };
+                }
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = ahkPath,
+                    Arguments = "\"" + tempScript + "\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    process.WaitForExit(5000);
+                }
+
+                // Clean up temp file
+                try { File.Delete(tempScript); } catch { }
+
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        // Window management imports
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        private const int SW_RESTORE = 9;
 
         private Dictionary<string, Dictionary<string, string>> ParseIni(string content)
         {
@@ -1697,6 +2087,8 @@ namespace DcsMaxLauncher
 
         private string GetSettingsIniPath()
         {
+            // Legacy INI path (deprecated - no longer used)
+            // Config now uses testing-configuration.json instead
             return Path.Combine(projectRoot, "4-Performance-Testing", "4.1.1-dcs-testing-configuration.ini");
         }
 

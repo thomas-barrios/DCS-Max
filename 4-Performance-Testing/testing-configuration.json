@@ -1,0 +1,410 @@
+{
+  "version": "1.0.0",
+  "description": "DCS-Max Benchmark Testing Configuration",
+  "configuration": {
+    "dryRun": false,
+    "vr": {
+      "enabled": true,
+      "hardware": "Pimax"
+    },
+    "waitTimes": {
+      "vr": 15000,
+      "missionReady": 35000,
+      "beforeRecord": 3000,
+      "recordLength": 60000,
+      "capFrameXWrite": 5000,
+      "missionRestart": 30000
+    },
+    "paths": {
+      "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
+      "dcsExe": "C:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
+      "capframex": "C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe",
+      "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures",
+      "notepadpp": "C:\\Program Files\\Notepad++\\notepad++.exe",
+      "pimax": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe"
+    },
+    "mission": "Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz",
+    "numberOfRuns": 3,
+    "maxRetries": 1
+  },
+  "testsToRun": [
+    {
+      "setting": "AA",
+      "values": [
+        "DLAA",
+        "MSAA"
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "MSAA",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "SSAO",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "SSLR",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "SSS",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "BlurFlatShadows",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "LODmult",
+      "values": [
+        0.5
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "shadows",
+      "values": [
+        1,
+        3
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "flatTerrainShadows",
+      "values": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "secondaryShadows",
+      "values": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "shadowTree",
+      "values": [
+        false,
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "cockpitGI",
+      "values": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "textures",
+      "values": [
+        0,
+        2
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "terrainTextures",
+      "values": [
+        "max"
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "anisotropy",
+      "values": [
+        4
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "effects",
+      "values": [
+        3
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "clouds",
+      "values": [
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "water",
+      "values": [
+        2
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "lights",
+      "values": [
+        0,
+        2
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "volumetricLights",
+      "values": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "heatBlr",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "rainDroplets",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "LensEffects",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "bloom",
+      "values": [
+        false,
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "ColorGradingLUT",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "DOF",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "motionBlur",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "forestDetailsFactor",
+      "values": [
+        0.6
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "forestDistanceFactor",
+      "values": [
+        0.8
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "sceneryDetailsFactor",
+      "values": [
+        0.6
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "clutterMaxDistance",
+      "values": [
+        650
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "civTraffic",
+      "values": [
+        ""
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "chimneySmokeDensity",
+      "values": [
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "canopyReflections",
+      "values": [
+        0
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "visibRange",
+      "values": [
+        "High"
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "preloadRadius",
+      "values": [
+        60000
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "maxFPS",
+      "values": [
+        300
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "sync",
+      "values": [
+        false
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "fullScreen",
+      "values": [
+        false
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "Upscaling",
+      "values": [
+        "DLSS",
+        "FSR",
+        "OFF"
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "DLSS_PerfQuality",
+      "values": [
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "useDeferredShading",
+      "values": [
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "pixel_density",
+      "values": [
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "msaaMaskSize",
+      "values": [
+        0.15,
+        0.3,
+        0.5
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "enableHMDMask",
+      "values": [
+        false,
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "openxr_eyeGaze",
+      "values": [
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "openxr_quadView",
+      "values": [
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "enable",
+      "values": [
+        false
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "mirror_use_DCS_resolution",
+      "values": [
+        true
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "sharpening",
+      "values": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    {
+      "setting": "scaling",
+      "values": [
+        0.25,
+        0.85
+      ],
+      "enabled": false
+    }
+  ]
+}

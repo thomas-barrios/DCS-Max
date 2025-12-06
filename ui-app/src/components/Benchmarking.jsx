@@ -7,17 +7,21 @@ import {
   RefreshCw,
   Activity,
   Lightbulb,
-  X
+  X,
+  Sliders
 } from 'lucide-react';
+import TestConfigEditor from './TestConfigEditor';
 
 function Benchmarking() {
   const [config, setConfig] = useState(null);
+  const [schema, setSchema] = useState(null);
   const [configError, setConfigError] = useState(null);
   const [running, setRunning] = useState(false);
   const [projectRoot, setProjectRoot] = useState('');
   const [closeAppsAfterTests, setCloseAppsAfterTests] = useState(false);
   const [availableMissions, setAvailableMissions] = useState([]);
-  const [selectedMission, setSelectedMission] = useState(''); // Empty means use INI default
+  const [selectedMission, setSelectedMission] = useState(''); // Empty means use config default
+  const [showEditor, setShowEditor] = useState(false);
   const [showTip, setShowTip] = useState(() => {
     const globalSetting = localStorage.getItem('dcsmax-show-tips');
     if (globalSetting === 'false') return false;
@@ -28,11 +32,18 @@ function Benchmarking() {
   const loadConfig = useCallback(async () => {
     try {
       setConfigError(null);
-      const result = await window.dcsMax.readIniConfig('4-Performance-Testing/4.1.1-dcs-testing-configuration.ini');
+      // Load the new JSON config
+      const result = await window.dcsMax.readJsonConfig('4-Performance-Testing/testing-configuration.json');
       if (result.success) {
-        setConfig(result.parsed);
+        setConfig(result.data);
       } else {
         setConfigError(result.error || 'Failed to load config');
+      }
+      
+      // Load schema for metadata
+      const schemaResult = await window.dcsMax.readJsonConfig('lib/dcs-settings-schema.json');
+      if (schemaResult.success) {
+        setSchema(schemaResult.data);
       }
     } catch (err) {
       console.error('Error loading config:', err);
@@ -120,44 +131,58 @@ function Benchmarking() {
   };
 
   const getActiveTests = () => {
-    if (!config || !config.DCSOptionsTests) return [];
+    if (!config || !config.testsToRun) return [];
     
-    const tests = [];
-    Object.entries(config.DCSOptionsTests).forEach(([key, value]) => {
-      if (key.startsWith('#')) return; // Skip comments
-      
-      const [values, metadata] = value.split('|');
-      const valueList = values.split(',').map(v => v.trim());
-      
-      tests.push({
-        setting: key,
-        values: valueList,
-        count: valueList.length,
-        metadata: metadata || ''
+    return config.testsToRun
+      .filter(test => test.enabled !== false)
+      .map(test => {
+        // Get metadata from schema if available
+        const settingMeta = schema?.settings?.[test.setting] || {};
+        return {
+          setting: test.setting,
+          displayName: settingMeta.displayName || test.setting,
+          values: test.values,
+          count: test.values.length,
+          performanceImpact: settingMeta.performanceImpact || 'UNKNOWN',
+          restartRequired: settingMeta.restartRequired || 'DCS'
+        };
       });
-    });
-    
-    return tests;
+  };
+
+  const handleSaveConfig = async (newConfig) => {
+    try {
+      const result = await window.dcsMax.writeJsonConfig(
+        '4-Performance-Testing/testing-configuration.json',
+        newConfig
+      );
+      if (result.success) {
+        setConfig(newConfig);
+        setShowEditor(false);
+      } else {
+        alert('Failed to save configuration: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error saving config:', err);
+      alert('Error saving configuration: ' + err.message);
+    }
   };
 
   const activeTests = getActiveTests();
   const totalCombinations = activeTests.length === 0 
-    ? (config?.Configuration?.NumberOfRuns ? parseInt(config.Configuration.NumberOfRuns) : 1)
+    ? (config?.configuration?.numberOfRuns || 1)
     : activeTests.reduce((total, test) => {
         return total === 0 ? test.count : total * test.count;
-      }, 0) * (config?.Configuration?.NumberOfRuns ? parseInt(config.Configuration.NumberOfRuns) : 1);
+      }, 0) * (config?.configuration?.numberOfRuns || 1);
 
-  // Get config values for display
-  const configInfo = config?.Configuration || {};
-  const enableVR = configInfo.EnableVR === 'true';
-  const iniMissionPath = configInfo.mission || 'benchmark-missions\\PB-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
-  // Use selected mission if set, otherwise use INI mission
-  const effectiveMissionPath = selectedMission 
-    ? `benchmark-missions\\${selectedMission}` 
-    : iniMissionPath;
-  const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\${effectiveMissionPath}` : `4-Performance-Testing\\${effectiveMissionPath}`;
-  const recordLength = configInfo.WaitRecordLength ? (parseInt(configInfo.WaitRecordLength) / 1000) : 60;
-  const numberOfRuns = configInfo.NumberOfRuns ? parseInt(configInfo.NumberOfRuns) : 1;
+  // Get config values for display (new JSON structure)
+  const configInfo = config?.configuration || {};
+  const enableVR = configInfo.vr?.enabled || false;
+  const configMissionPath = configInfo.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
+  // Use selected mission if set, otherwise use config mission
+  const effectiveMissionPath = selectedMission || configMissionPath;
+  const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\benchmark-missions\\${effectiveMissionPath}` : `benchmark-missions\\${effectiveMissionPath}`;
+  const recordLength = configInfo.waitTimes?.recordLength ? (configInfo.waitTimes.recordLength / 1000) : 60;
+  const numberOfRuns = configInfo.numberOfRuns || 1;
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -207,17 +232,26 @@ function Benchmarking() {
           {/* Control Buttons */}
           <div className="space-y-3 mb-6">
             <button
+              onClick={() => setShowEditor(true)}
+              disabled={running || !schema}
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded-lg transition-colors"
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Configure Tests</span>
+            </button>
+
+            <button
               onClick={async () => {
-                const result = await window.dcsMax.openFile('4-Performance-Testing/4.1.1-dcs-testing-configuration.ini');
+                const result = await window.dcsMax.openFile('4-Performance-Testing/testing-configuration.json');
                 if (!result.success) {
-                  alert('Failed to open file: ' + result.error);
+                  alert('Failed to open config file: ' + result.error);
                 }
               }}
               disabled={running}
-              className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors text-sm"
             >
               <Edit3 className="w-4 h-4" />
-              <span>Edit Configuration</span>
+              <span>Edit JSON Directly</span>
             </button>
 
             <button
@@ -294,7 +328,7 @@ function Benchmarking() {
                   disabled={running}
                   className="w-full bg-slate-700/50 border border-slate-600/50 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500 disabled:opacity-50"
                 >
-                  <option value="">Use INI default ({iniMissionPath.split('\\').pop()})</option>
+                  <option value="">Use config default ({configMissionPath.split(/[\\\/]/).pop()})</option>
                   {availableMissions.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
@@ -328,8 +362,15 @@ function Benchmarking() {
                     <div className="divide-y divide-slate-700/50">
                       {activeTests.map((test) => (
                         <div key={test.setting} className="flex items-center justify-between py-2 px-1">
-                          <span className="text-white font-medium text-sm">{test.setting}</span>
-                          <span className="text-blue-400 text-sm flex-1 text-center px-2">{test.values.join(', ')}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-white font-medium text-sm">{test.displayName}</span>
+                            {test.performanceImpact === 'HIGH' && (
+                              <span className="text-xs px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded">HIGH</span>
+                            )}
+                          </div>
+                          <span className="text-blue-400 text-sm flex-1 text-center px-2">
+                            {test.values.map(v => String(v)).join(', ')}
+                          </span>
                           <span className="text-slate-500 text-xs">{test.count} value{test.count > 1 ? 's' : ''}</span>
                         </div>
                       ))}
@@ -365,6 +406,16 @@ function Benchmarking() {
           </div>
         </div>
       </div>
+
+      {/* Test Configuration Editor Modal */}
+      {showEditor && schema && config && (
+        <TestConfigEditor
+          schema={schema}
+          config={config}
+          onSave={handleSaveConfig}
+          onCancel={() => setShowEditor(false)}
+        />
+      )}
     </div>
   );
 }
