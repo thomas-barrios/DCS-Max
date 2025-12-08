@@ -217,26 +217,48 @@ foreach ($folder in $scriptFolders) {
 $uiAppDest = Join-Path $releaseFolder "ui-app"
 New-Item -ItemType Directory -Path $uiAppDest -Force | Out-Null
 
-# Check if app is built
-$binPath = Join-Path $scriptDir "ui-app\bin"
-if (-not (Test-Path (Join-Path $binPath "DCS-Max.exe"))) {
-    Write-Host "Building UI app first..." -ForegroundColor Yellow
-    Push-Location "ui-app"
-    
-    # Check for node_modules, install if needed
-    if (-not (Test-Path "node_modules")) {
-        Write-Host "Installing npm dependencies..." -ForegroundColor Yellow
-        npm install
-    }
-    
-    # Build the app
-    npm run build
-    
-    Pop-Location
+# Always clean and rebuild for release to ensure latest code
+Write-Host "Building UI app for release..." -ForegroundColor Yellow
+
+# Clean caches before build
+Write-Host "Cleaning caches..." -ForegroundColor Yellow
+Push-Location "ui-app"
+Remove-Item -Recurse -Force bin, obj, dist, web -ErrorAction SilentlyContinue
+Pop-Location
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\DCS-Max*" -ErrorAction SilentlyContinue
+Write-Host "Caches cleared!" -ForegroundColor Green
+
+Push-Location "ui-app"
+
+# Check for node_modules, install if needed
+if (-not (Test-Path "node_modules")) {
+    Write-Host "Installing npm dependencies..." -ForegroundColor Yellow
+    npm install
 }
 
-# Copy only the bin folder (compiled app)
+# Build C# app
+Write-Host "Building C# application..." -ForegroundColor Yellow
+dotnet build DcsMaxLauncher.csproj -c Release
+
+# Build the React app
+Write-Host "Building React frontend..." -ForegroundColor Yellow
+npm run build
+
+Pop-Location
+
+$binPath = Join-Path $scriptDir "ui-app\bin\Release\net48"
+$distPath = Join-Path $scriptDir "ui-app\dist"
+
+# Copy the bin folder (compiled app)
 Copy-Item -Recurse $binPath (Join-Path $uiAppDest "bin")
+
+# Copy the dist folder (web app - required by WebView2)
+if (Test-Path $distPath) {
+    Copy-Item -Recurse $distPath (Join-Path $uiAppDest "dist")
+    Write-Host "Web app (dist) copied successfully" -ForegroundColor Green
+} else {
+    Write-Host "WARNING: dist folder not found - web app may not work!" -ForegroundColor Red
+}
 
 # 5. Create empty Backups folder with readme and empty log
 $backupsDir = Join-Path $releaseFolder "Backups"
@@ -264,6 +286,10 @@ foreach ($file in $debugFiles) {
     $debugPath = Join-Path $uiAppDest "bin\$file"
     if (Test-Path $debugPath) { Remove-Item -Force $debugPath }
 }
+
+# Remove dev configuration file
+$devConfigPath = Join-Path $releaseFolder "4-Performance-Testing\testing-configuration.dev.json"
+if (Test-Path $devConfigPath) { Remove-Item -Force $devConfigPath }
 
 # Remove Debug/Release subfolders if they exist
 $devFolders = @("Debug", "Release")

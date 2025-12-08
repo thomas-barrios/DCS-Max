@@ -1,5 +1,27 @@
 # Changelog
 
+   07 dec 2025
+### [DCS-Max 1.3.1](https://github.com/thomas-barrios/dcs-max) - Path Configuration & Verification Fixes
+
+**Bug Fixes:**
+- Fixed: Path verification showing "Not found" after file browser selection - resolved React state closure issue
+  - Verification functions now accept paths as parameters instead of relying on stale state
+  - Immediate feedback after selecting paths through file browser
+- Fixed: Placeholder values ("auto") being treated as literal paths in configuration
+  - Added placeholder detection for "auto", empty strings, and null values
+  - Pimax Client now correctly auto-detected at `C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe`
+- Fixed: Benchmark using incorrect D:\ drive path from development config override
+  - Updated `testing-configuration.dev.json` to use correct C:\ drive paths
+  - Removed hardcoded `optionsLua` path - now derived from `savedGamesPath`
+- Fixed: Development config overrides persisting in releases
+  - Dev config properly merges without breaking production paths
+
+**Improvements:**
+- Enhanced path detection and verification accuracy
+- Better placeholder handling across all configuration paths
+
+---
+
    06 dec 2025
 ### [DCS-Max 1.3.0](https://github.com/thomas-barrios/dcs-max) - "Compact Testing" UI Optimization & Configuration Overhaul
 

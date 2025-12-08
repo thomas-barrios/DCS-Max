@@ -27,7 +27,7 @@ npm run build
 
 ### Build C# Launcher
 ```powershell
-.\build.ps1
+.\build-app.ps1
 ```
 
 ### Development Mode
@@ -50,7 +50,7 @@ ui-app/
 │   └── web/               # Bundled web files
 ├── packages/              # NuGet packages (WebView2, Json)
 ├── Program-CS5.cs         # C# source (C# 5 compatible)
-├── build.ps1              # Build script
+├── build-app.ps1         # Build script (C# desktop app + React UI)
 ├── index.html             # React entry point
 ├── vite.config.js         # Vite configuration
 └── tailwind.config.js     # Tailwind configuration

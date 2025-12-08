@@ -15,20 +15,20 @@ import {
 function Dashboard({ systemInfo, isAdmin, onNavigate }) {
   const quickActions = [
     {
-      title: 'Create System Backup',
-      description: 'Backup DCS settings, services, and registry',
-      icon: Database,
-      action: 'backup',
-      tab: 'backup',
-      color: 'blue'
-    },
-    {
       title: 'Install Required Software',
       description: 'Install CapFrameX, AutoHotkey, and Notepad++ via winget',
       icon: Download,
       action: 'install',
       tab: 'install',
       color: 'cyan'
+    },
+    {
+      title: 'Create System Backup',
+      description: 'Backup DCS settings, services, and registry',
+      icon: Database,
+      action: 'backup',
+      tab: 'backup',
+      color: 'blue'
     },
     {
       title: 'Performance Testing',

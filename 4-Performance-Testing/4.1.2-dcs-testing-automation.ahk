@@ -2,10 +2,11 @@
 #SingleInstance Force
 
 ; ==============================
-; JSON LIBRARY
+; JSON LIBRARY & VR MANAGER
 ; ==============================
 
 #Include "..\lib\jxon.ahk"
+#Include "VRHardwareManager.ahk"
 
 ; ==============================
 ; COMMAND LINE ARGUMENTS
@@ -119,7 +120,8 @@ StartTime := ""
 BaseTimePerTest := 0
 
 ; File paths - expand environment variables
-optionsLua := ExpandEnvVars(GetNestedValue(config, "configuration.paths.optionsLua", EnvGet("USERPROFILE") "\Saved Games\DCS\Config\options.lua"))
+savedGamesPath := ExpandEnvVars(GetNestedValue(config, "configuration.paths.savedGamesPath", EnvGet("USERPROFILE") "\Saved Games\DCS"))
+optionsLua := savedGamesPath "\Config\options.lua"
 dcsExe := ExpandEnvVars(GetNestedValue(config, "configuration.paths.dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"))
 capframex := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe"))
 capframexFolder := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframexFolder", A_MyDocuments "\CapFrameX\Captures"))
@@ -154,15 +156,15 @@ if (MissionOverride != "") {
 ; ==============================
 
 ; Validate critical files exist
-; if (!FileExist(optionsLua)) {
-;     MsgBox("ERROR: DCS options.lua not found at:`n" optionsLua "`n`nCheck the DCS location specified in the scritpR.", "DCS Benchmark Error", "0x10")
-;     ExitApp(1)
-; }
+if (!FileExist(optionsLua)) {
+    MsgBox("ERROR: DCS options.lua not found at:`n" optionsLua "`n`nCheck the DCS location specified in the config.", "DCS Benchmark Error", "0x10")
+    ExitApp(1)
+}
 
-; if (!FileExist(mission)) {
-;     MsgBox("ERROR: Benchmark mission not found at:`n" mission, "DCS Benchmark Error", "0x10")
-;     ExitApp(1)
-; }
+if (!FileExist(mission)) {
+    MsgBox("ERROR: Benchmark mission not found at:`n" mission, "DCS Benchmark Error", "0x10")
+    ExitApp(1)
+}
 
 originalLua := FileRead(optionsLua)
 
@@ -745,27 +747,48 @@ StartApplications() {
     if (EnableVR) {
         LogWithTimestamp("VR enabled - setting up " VRhardware " hardware...")
         
-        ; Start Pimax Client (for Pimax VR)
-        if (VRhardware = "Pimax") {
-            if !FileExist(pimax) {
-                LogWithTimestamp("ERROR: Pimax Client not found: " pimax)
-                MsgBox "Pimax Client not found: " pimax, "Error", 16
+        ; Auto-detect if needed
+        detectedHardware := VRhardware
+        if (VRhardware = "auto") {
+            detectedHardware := DetectInstalledHeadset()
+            if (!detectedHardware) {
+                LogWithTimestamp("ERROR: No VR headset detected")
+                MsgBox "No VR headset detected. Install Meta Quest, HTC Vive, or Pimax.", "Error", 16
                 ExitApp
             }
-            
-            ; Check if Pimax is already running
-            pimaxAlreadyRunning := WinExist("ahk_exe PimaxClient.exe")
-            if (pimaxAlreadyRunning) {
-                LogWithTimestamp("Pimax Client already running, skipping launch...")
-                Sleep 2000
-            } else {
-                LogWithTimestamp("Starting Pimax Client...")
-                Run pimax
-                LogWithTimestamp("Waiting " Round(WaitVR/1000) "s for Pimax Client to start...")
-                Sleep WaitVR
-            }
+            LogWithTimestamp("Auto-detected VR hardware: " detectedHardware)
+        }
+        
+        ; Get headset path
+        exePath := GetHeadsetPath(detectedHardware)
+        if (!exePath) {
+            LogWithTimestamp("ERROR: " detectedHardware " not found")
+            MsgBox "VR hardware not found: " detectedHardware, "Error", 16
+            ExitApp
+        }
+        
+        ; Check if already running
+        if (CheckVRRunning(detectedHardware)) {
+            LogWithTimestamp(detectedHardware " already running, skipping launch...")
+            Sleep 2000
         } else {
-            LogWithTimestamp("VR hardware " VRhardware " selected - no additional client needed")
+            ; Meta Quest special handling: verify connection
+            if (detectedHardware = "MetaQuest") {
+                if (!CheckMetaQuestConnection()) {
+                    LogWithTimestamp("ERROR: Meta Quest not connected or powered off")
+                    MsgBox "Meta Quest not found. Connect headset via USB and power it on.", "Connection Error", 16
+                    ExitApp
+                }
+            }
+            
+            LogWithTimestamp("Starting " detectedHardware "...")
+            if (!StartVRHardware(detectedHardware, exePath)) {
+                LogWithTimestamp("ERROR: Failed to start " detectedHardware)
+                MsgBox "Failed to start " detectedHardware, "Error", 16
+                ExitApp
+            }
+            LogWithTimestamp("Waiting " Round(WaitVR/1000) "s for " detectedHardware " to start...")
+            Sleep WaitVR
         }
     } else {
         LogWithTimestamp("VR disabled - skipping VR hardware setup")

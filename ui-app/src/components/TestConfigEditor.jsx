@@ -562,15 +562,15 @@ function ConfigurationPanel({ config, onUpdate }) {
             <div>
               <label className="block text-sm text-slate-400 mb-1">VR Hardware</label>
               <select
-                value={config?.vr?.hardware || 'Pimax'}
+                value={config?.vr?.hardware || 'none'}
                 onChange={(e) => onUpdate('vr.hardware', e.target.value)}
                 className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
               >
+                <option value="Meta Quest (Link/Air Link)">Meta Quest (Link/Air Link)</option>
+                <option value="SteamVR (Vive/Index/Reverb G2)">SteamVR (Vive/Index/Reverb G2)</option>
                 <option value="Pimax">Pimax</option>
-                <option value="MetaQuest">Meta Quest</option>
-                <option value="HPReverbG2">HP Reverb G2</option>
-                <option value="ValveIndex">Valve Index</option>
-                <option value="Other">Other</option>
+                <option value="Varjo">Varjo</option>
+                <option value="Windows Mixed Reality">Windows Mixed Reality</option>
               </select>
             </div>
           </div>

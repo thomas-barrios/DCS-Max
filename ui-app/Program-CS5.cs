@@ -1801,7 +1801,7 @@ ExitApp
                 paths["dcsPath"] = DetectDcsPath();
                 
                 // DCS Saved Games Folder
-                paths["savedGamesPath"] = DetectDcsSavedGamesPath();
+                paths["dcsSavedGamesPath"] = DetectDcsSavedGamesPath();
                 
                 // CapFrameX
                 paths["capframexPath"] = DetectCapFrameXPath();
@@ -1809,8 +1809,35 @@ ExitApp
                 // AutoHotkey v2
                 paths["autoHotkeyPath"] = DetectAutoHotkeyPath();
                 
-                // Pimax Client
-                paths["pimaxPath"] = DetectPimaxPath();
+                // Detect installed VR headsets with path recommendations
+                var vrInfo = DetectVRHeadsets() as Dictionary<string, object>;
+                System.Diagnostics.Debug.WriteLine($"DetectApplicationPaths: vrInfo is null: {vrInfo == null}");
+                if (vrInfo != null)
+                {
+                    var headsetsList = vrInfo["headsets"] as List<string>;
+                    System.Diagnostics.Debug.WriteLine($"DetectApplicationPaths: headsets count: {headsetsList?.Count ?? 0}");
+                    paths["vrHeadsets"] = headsetsList?.ToArray() ?? new string[0];
+                    paths["primaryVR"] = vrInfo["primary"];
+                    paths["vrPaths"] = vrInfo["paths"];
+                    
+                    // Use primaryPath for VR Client path if detected
+                    if (vrInfo.ContainsKey("primaryPath") && !string.IsNullOrEmpty(vrInfo["primaryPath"]?.ToString()))
+                    {
+                        paths["pimaxPath"] = vrInfo["primaryPath"].ToString();
+                        System.Diagnostics.Debug.WriteLine($"DetectApplicationPaths: primaryPath: {vrInfo["primaryPath"]}");
+                    }
+                    else
+                    {
+                        paths["pimaxPath"] = "";
+                    }
+                }
+                else
+                {
+                    paths["vrHeadsets"] = new string[0];
+                    paths["vrPaths"] = new Dictionary<string, string>();
+                    paths["primaryVR"] = "none";
+                    paths["pimaxPath"] = "";
+                }
                 
                 // Notepad++
                 paths["notepadppPath"] = DetectNotepadPPPath();
@@ -1821,6 +1848,160 @@ ExitApp
             {
                 return new { success = false, error = ex.Message };
             }
+        }
+
+        private Dictionary<string, object> DetectVRHeadsets()
+        {
+            var detectedHeadsets = new List<string>();
+            var vrPaths = new Dictionary<string, string>();
+            string primaryVR = "none";
+            string primaryPath = "";
+            
+            System.Diagnostics.Debug.WriteLine("DetectVRHeadsets: Starting VR detection...");
+            
+            // VR client default paths - check if files exist
+            // Names include compatible headsets for clarity
+            var vrDefaults = new Dictionary<string, string>
+            {
+                { "Meta Quest (Link/Air Link)", @"C:\Program Files\Oculus\Support\oculus-client\OculusClient.exe" },
+                { "SteamVR (Vive/Index/Reverb G2)", @"C:\Program Files (x86)\Steam\steamapps\common\SteamVR\bin\win64\vrstartup.exe" },
+                { "Pimax", @"C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe" },
+                { "Varjo", @"C:\Program Files\Varjo\Varjo Base\VarjoBase.exe" },
+                { "Windows Mixed Reality", @"C:\Windows\System32\MixedRealityPortal.exe" }
+            };
+            
+            foreach (var vr in vrDefaults)
+            {
+                bool exists = File.Exists(vr.Value);
+                System.Diagnostics.Debug.WriteLine($"DetectVRHeadsets: Checking {vr.Key} at {vr.Value} - exists: {exists}");
+                
+                if (exists)
+                {
+                    detectedHeadsets.Add(vr.Key);
+                    vrPaths[vr.Key] = vr.Value;
+                    
+                    // First found becomes primary
+                    if (primaryVR == "none")
+                    {
+                        primaryVR = vr.Key;
+                        primaryPath = vr.Value;
+                    }
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"DetectVRHeadsets: Found {detectedHeadsets.Count} headsets, primary: {primaryVR}");
+            
+            return new Dictionary<string, object>
+            {
+                { "headsets", detectedHeadsets },
+                { "primary", primaryVR },
+                { "paths", vrPaths },
+                { "primaryPath", primaryPath }
+            };
+        }
+
+        private bool DetectPimaxInstalled()
+        {
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe",
+                @"C:\Program Files (x86)\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return true;
+                }
+            }
+
+            // Check registry
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Pimax"))
+                {
+                    if (key != null)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private object DetectMetaQuestPath()
+        {
+            string[] commonPaths = new string[]
+            {
+                @"C:\Program Files\Meta\MetaQuestLink\MetaQuestLink.exe",
+                @"C:\Program Files (x86)\Meta\MetaQuestLink\MetaQuestLink.exe"
+            };
+
+            foreach (string path in commonPaths)
+            {
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+
+            // Check registry
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Meta\MetaQuestLink"))
+                {
+                    if (key != null)
+                    {
+                        object pathValue = key.GetValue("InstallPath");
+                        if (pathValue != null)
+                        {
+                            string exePath = Path.Combine(pathValue.ToString(), "MetaQuestLink.exe");
+                            if (File.Exists(exePath))
+                            {
+                                return exePath;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private object DetectSteamVRPath()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam"))
+                {
+                    if (key != null)
+                    {
+                        object pathValue = key.GetValue("InstallPath");
+                        if (pathValue != null)
+                        {
+                            string steamVRPath = Path.Combine(pathValue.ToString(), "steamapps", "common", "SteamVR");
+                            if (Directory.Exists(steamVRPath))
+                            {
+                                return steamVRPath;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Check common installation path
+            string defaultPath = @"C:\Program Files (x86)\Steam\steamapps\common\SteamVR";
+            if (Directory.Exists(defaultPath))
+            {
+                return defaultPath;
+            }
+
+            return null;
         }
 
         private object DetectDcsPath()
@@ -1884,14 +2065,53 @@ ExitApp
         private object DetectDcsSavedGamesPath()
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string userName = Environment.UserName;
             
-            // Check for DCS and DCS.openbeta folders
-            string[] possiblePaths = new string[]
+            System.Diagnostics.Debug.WriteLine($"DetectDcsSavedGamesPath: userName = {userName}");
+            
+            // Build list of possible paths including non-standard drive locations
+            var possiblePaths = new List<string>();
+            
+            // Check all fixed drives FIRST for Users\<username>\Saved Games\DCS pattern
+            // This prioritizes non-C: drive locations which are often intentional user choices
+            foreach (DriveInfo drive in DriveInfo.GetDrives())
             {
-                Path.Combine(userProfile, "Saved Games", "DCS"),
-                Path.Combine(userProfile, "Saved Games", "DCS.openbeta")
-            };
+                if (drive.DriveType == DriveType.Fixed && drive.IsReady)
+                {
+                    string driveLetter = drive.Name; // e.g., "D:\"
+                    
+                    // Skip C: drive initially - we'll check it at the end
+                    if (driveLetter.StartsWith("C", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    
+                    // D:\Users\<username>\Saved Games\DCS pattern
+                    string dcsPath = Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS");
+                    System.Diagnostics.Debug.WriteLine($"DetectDcsSavedGamesPath: Checking {dcsPath}");
+                    possiblePaths.Add(dcsPath);
+                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS.openbeta"));
+                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS"));
+                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS.openbeta"));
+                    
+                    // Some users have Saved Games directly on drive root
+                    possiblePaths.Add(Path.Combine(driveLetter, "Saved Games", "DCS"));
+                    possiblePaths.Add(Path.Combine(driveLetter, "Saved Games", "DCS.openbeta"));
+                }
+            }
+            
+            // Add standard C: drive locations last
+            possiblePaths.Add(Path.Combine(userProfile, "Saved Games", "DCS"));
+            possiblePaths.Add(Path.Combine(userProfile, "Saved Games", "DCS.openbeta"));
 
+            // First pass: look for folders with actual DCS content (Config subfolder)
+            foreach (string path in possiblePaths)
+            {
+                if (Directory.Exists(path) && Directory.Exists(Path.Combine(path, "Config")))
+                {
+                    return new { found = true, path = path, source = "filesystem" };
+                }
+            }
+            
+            // Second pass: any existing folder
             foreach (string path in possiblePaths)
             {
                 if (Directory.Exists(path))

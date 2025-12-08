@@ -2,15 +2,35 @@
 # Builds the UI app and launches DCS-Max
 
 param(
-    [switch]$NoBuild,
-    [switch]$Release
+    [switch]$NoBuild
 )
 
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
+# Define cache paths constant (shared with build-app.ps1)
+$cachePaths = @(
+    "$env:APPDATA\DCS-Max",
+    "$env:LOCALAPPDATA\DCS-Max",
+    "$env:TEMP\DCS-Max",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Code Cache",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Service Worker",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\IndexedDB",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Local Storage"
+)
+
 Write-Host "=== DCS-Max Build and Run ===" -ForegroundColor Cyan
+
+# Clean browser cache before building
+Write-Host "`nCleaning browser cache..." -ForegroundColor Yellow
+foreach ($path in $cachePaths) {
+    if (Test-Path $path) {
+        Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+Write-Host "Cache cleaned!" -ForegroundColor Green
 
 # Close existing DCS-Max instance BEFORE building
 Write-Host "`nChecking for existing DCS-Max instances..." -ForegroundColor Yellow
@@ -57,23 +77,21 @@ if ($closed) {
 # Build the UI app unless -NoBuild is specified
 if (-not $NoBuild) {
     Write-Host "`nBuilding UI app..." -ForegroundColor Yellow
-    Push-Location "ui-app"
+    
+    $buildScriptPath = Join-Path $scriptDir "ui-app\build-app.ps1"
     
     try {
-        & .\build.ps1
+        & powershell -ExecutionPolicy Bypass -File $buildScriptPath
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Build failed!" -ForegroundColor Red
-            Pop-Location
             exit 1
         }
     }
     catch {
         Write-Host "Build error: $_" -ForegroundColor Red
-        Pop-Location
         exit 1
     }
     
-    Pop-Location
     Write-Host "Build completed successfully!" -ForegroundColor Green
 } else {
     Write-Host "`nSkipping build (-NoBuild specified)" -ForegroundColor Yellow
@@ -82,7 +100,7 @@ if (-not $NoBuild) {
 # Launch DCS-Max
 Write-Host "`nLaunching DCS-Max..." -ForegroundColor Yellow
 
-$exePath = Join-Path $scriptDir "ui-app\bin\DCS-Max.exe"
+$exePath = Join-Path $scriptDir "ui-app\bin\Release\net48\DCS-Max.exe"
 
 if (-not (Test-Path $exePath)) {
     Write-Host "Error: DCS-Max.exe not found at $exePath" -ForegroundColor Red

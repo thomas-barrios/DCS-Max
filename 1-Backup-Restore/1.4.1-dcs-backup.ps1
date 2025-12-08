@@ -14,6 +14,14 @@ $Timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $BackupFolder = "$BackupsDir\$Timestamp-dcs-settings-backup"
 $LogFile = "$BackupsDir\_BackupLog.txt"
 
+# Import VR Headset Configuration module
+$VRConfigPath = Join-Path $RootDir "lib\VRHeadsetConfig.ps1"
+if (Test-Path $VRConfigPath) {
+    . $VRConfigPath
+} else {
+    Write-Warning "VRHeadsetConfig module not found. Some VR settings may not be backed up."
+}
+
 # Find Saved Games path (may be on different drive than USERPROFILE)
 # Check multiple possible locations for Saved Games, starting with common alternate drives
 $possiblePaths = @(
@@ -44,6 +52,12 @@ function Write-Log {
     Add-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
 }
 
+# Get VR backup groups (conditional based on installed headsets)
+$VRBackupGroups = @()
+if (Test-Path function:Get-VRBackupGroups) {
+    $VRBackupGroups = Get-VRBackupGroups
+}
+
 # Backup groups with labels for output
 $BackupGroups = @(
     @{
@@ -56,15 +70,8 @@ $BackupGroups = @(
         Folders = @(
             "$SavedGamesPath\DCS\Config\Input"
         )
-    },
-    @{
-        Label = "Pimax VR"
-        Files = @(
-            "$env:USERPROFILE\AppData\Local\Pimax\runtime\profile.json",
-            "$env:USERPROFILE\AppData\Roaming\PiTool\manifest\PiTool\Common Setting.json"
-        )
-        Folders = @()
-    },
+    }
+) + $VRBackupGroups + @(
     @{
         Label = "Quad Views Foveated"
         Files = @(

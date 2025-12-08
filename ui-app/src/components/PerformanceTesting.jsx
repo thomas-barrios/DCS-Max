@@ -115,7 +115,9 @@ function CalibrationWizard({
   };
 
   const getVRHardware = () => {
-    return config?.configuration?.vr?.hardware || 'Pimax';
+    const hardware = config?.configuration?.vr?.hardware;
+    // Return 'none' if hardware is undefined, null, or 'none'
+    return hardware && hardware !== 'none' ? hardware : 'none';
   };
 
   const getMissionPath = () => {
@@ -132,9 +134,17 @@ function CalibrationWizard({
     
     try {
       const hardware = getVRHardware();
-      const exePath = getPath('pimax');
       
-      const result = await window.dcsMax.launchVRSoftware(hardware, exePath);
+      // Check if VR is configured
+      if (!hardware || hardware === 'none') {
+        setActionStatus({ success: false, message: 'No VR headset configured. Configure VR in Install Required Software tab.' });
+        return;
+      }
+      
+      // Get VR client path from config
+      const vrClientPath = configInfo?.paths?.vrClient || '';
+      
+      const result = await window.dcsMax.launchVRSoftware(hardware, vrClientPath);
       
       if (result.success) {
         if (result.alreadyRunning) {
@@ -1674,19 +1684,9 @@ function RunTestsTab({
                   
                   {/* VR Hardware (only shown when VR is enabled) */}
                   {configInfo.vr?.enabled && (
-                    <select
-                      value={configInfo.vr?.hardware || 'Pimax'}
-                      onChange={(e) => updateConfigValue('configuration.vr.hardware', e.target.value)}
-                      disabled={running}
-                      className="px-2 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                    >
-                      <option value="Pimax">Pimax</option>
-                      <option value="MetaQuest (future)">Meta Quest</option>
-                      <option value="HPReverbG2 (future)">HP Reverb G2</option>
-                      <option value="ValveIndex (future)">Valve Index</option>
-                      <option value="VarjoAero (future)">Varjo Aero</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <span className="px-2 py-1.5 text-cyan-400 text-sm font-medium">
+                      {configInfo.vr?.hardware || 'Not configured'}
+                    </span>
                   )}
                 </div>
               </div>

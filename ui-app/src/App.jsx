@@ -41,8 +41,8 @@ function App() {
 
   const tabs = [
     { id: 'dashboard', name: 'Dashboard', icon: Activity },
-    { id: 'backup', name: 'Backup/Restore', icon: Database },
     { id: 'install', name: 'Install Required Soft', icon: Download },
+    { id: 'backup', name: 'Backup/Restore', icon: Database },
     { id: 'performance', name: 'Performance Testing', icon: Gauge },
     { id: 'optimization', name: 'Optimization', icon: Wrench },
     { id: 'logs', name: 'Logs', icon: FileText },
@@ -86,7 +86,7 @@ function App() {
                 onClick={() => window.dcsMax?.openExternal?.('https://github.com/thomas-barrios/DCS-Max/blob/master/README.md')}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
-                v1.3.0
+                v1.3.1
               </button>
             </div>
           </div>

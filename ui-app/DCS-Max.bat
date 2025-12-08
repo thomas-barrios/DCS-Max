@@ -12,7 +12,7 @@ if exist "bin\DCS-Max.exe" (
 
 REM Build not found, try to build
 echo DCS-Max executable not found. Building...
-powershell -ExecutionPolicy Bypass -File "%~dp0build.ps1"
+powershell -ExecutionPolicy Bypass -File "%~dp0build-app.ps1"
 
 if exist "bin\DCS-Max.exe" (
     start "" "bin\DCS-Max.exe"
