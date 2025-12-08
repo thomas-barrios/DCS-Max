@@ -5,7 +5,7 @@
     "dryRun": false,
     "vr": {
       "enabled": false,
-      "hardware": "none"
+      "hardware": ""
     },
     "waitTimes": {
       "vr": 20000,
@@ -18,11 +18,12 @@
     "paths": {
       "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
       "dcsExe": "C:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
-      "capframex": "C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe",
+      "capframex": "C:\\Users\\Thomas\\AppData\\Local\\Microsoft\\WinGet\\Packages\\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\\CapFrameX.exe",
       "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures",
-      "notepadpp": "C:\\Program Files\\Notepad++\\notepad++.exe",
+      "notepadpp": "C:\\Users\\Thomas\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Notepad++.Notepad++_Microsoft.Winget.Source_8wekyb3d8bbwe\\notepad++.exe",
       "autohotkey": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
-      "vrClient": ""
+      "vrClient": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe",
+      "pimax": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe"
     },
     "vrDefaults": {
       "metaquest": {
@@ -181,7 +182,7 @@
         0,
         2
       ],
-      "enabled": false
+      "enabled": true
     },
     {
       "setting": "terrainTextures",

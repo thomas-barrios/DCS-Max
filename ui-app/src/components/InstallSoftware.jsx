@@ -13,15 +13,19 @@ import {
   Save
 } from 'lucide-react';
 
-// Path configuration fields
-const pathFields = [
+// Path configuration fields - split into DCS and Software paths
+const dcsPathFields = [
   { key: 'dcsPath', label: 'DCS World Executable', required: true },
-  { key: 'savedGamesPath', label: 'DCS Saved Games Folder', required: true, isFolder: true },
-  { key: 'capframexPath', label: 'CapFrameX Executable', required: false },
-  { key: 'autoHotkeyPath', label: 'AutoHotkey v2 Executable', required: false },
-  { key: 'notepadppPath', label: 'Notepad++', required: false },
-  { key: 'benchmarkMissionPath', label: 'Benchmark Mission File', required: false, isRelative: true }
+  { key: 'savedGamesPath', label: 'DCS Saved Games Folder', required: true, isFolder: true }
 ];
+
+const softwarePathFields = [
+  { key: 'capframexPath', label: 'CapFrameX', required: false, statusKey: 'capframex' },
+  { key: 'autoHotkeyPath', label: 'AutoHotkey v2', required: false, statusKey: 'autohotkey' },
+  { key: 'notepadppPath', label: 'Notepad++', required: false, statusKey: 'notepadpp' }
+];
+
+const pathFields = [...dcsPathFields, ...softwarePathFields];
 
 const requiredSoftware = [
   {
@@ -30,7 +34,8 @@ const requiredSoftware = [
     description: 'Performance benchmarking and analysis tool',
     wingetId: 'CXWorld.CapFrameX',
     website: 'https://www.capframex.com/',
-    required: true
+    required: true,
+    portable: true  // Always installs as portable, needs Start Menu shortcut
   },
   {
     id: 'autohotkey',
@@ -38,7 +43,8 @@ const requiredSoftware = [
     description: 'Automation scripting for benchmark workflows',
     wingetId: 'AutoHotkey.AutoHotkey',
     website: 'https://www.autohotkey.com/',
-    required: true
+    required: true,
+    portable: false
   },
   {
     id: 'notepadpp',
@@ -46,7 +52,8 @@ const requiredSoftware = [
     description: 'Log viewer and configuration editor',
     wingetId: 'Notepad++.Notepad++',
     website: 'https://notepad-plus-plus.org/',
-    required: true
+    required: true,
+    portable: false
   }
 ];
 
@@ -74,12 +81,27 @@ function InstallSoftware() {
   });
   const [pathStatus, setPathStatus] = useState({});
   const [pathSources, setPathSources] = useState({});
-  const [projectRoot, setProjectRoot] = useState('');
+  const [projectRoot, setProjectRoot] = useState('');  
   const [checkingPaths, setCheckingPaths] = useState(false);
+  
+  // CapFrameX hotkey configuration state
+  const [capframexHotkeyConfigured, setCapframexHotkeyConfigured] = useState(false);
+  const [checkingCapframexHotkey, setCheckingCapframexHotkey] = useState(false);
+  const skipHotkeyCheckRef = React.useRef(false);
+  
+  // Ref for output console auto-scroll
+  const outputRef = React.useRef(null);
 
   useEffect(() => {
     initializeAll();
   }, []);
+  
+  // Auto-scroll to output when installation starts or output changes
+  useEffect(() => {
+    if (output && outputRef.current) {
+      outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [output, installing]);
 
   const JSON_CONFIG_PATH = '4-Performance-Testing/testing-configuration.json';
 
@@ -146,7 +168,7 @@ function InstallSoftware() {
       console.error('Failed to read settings from JSON:', err);
     }
 
-    // Detect paths and check software status
+    // Detect paths and check software status (this also checks CapFrameX hotkey)
     await checkInstalledSoftware(newSettings, sources, root);
   };
 
@@ -174,31 +196,32 @@ function InstallSoftware() {
           sources.savedGamesPath = dcsSavedGames.found ? `detected (${dcsSavedGames.source})` : 'default';
         }
         
-        // Check required software
+        // Check required software - ALWAYS use detected path (override saved config)
         const capframex = pathsResult.paths.capframexPath;
         status['capframex'] = capframex?.found ? 'installed' : 'not-installed';
-        if (!newSettings.capframexPath && capframex?.path) {
+        if (capframex?.path) {
+          // Always prefer fresh detection over saved config
           newSettings.capframexPath = capframex.path;
           sources.capframexPath = capframex.found ? `detected (${capframex.source})` : 'default';
         }
         
         const autohotkey = pathsResult.paths.autoHotkeyPath;
         status['autohotkey'] = autohotkey?.found ? 'installed' : 'not-installed';
-        if (!newSettings.autoHotkeyPath && autohotkey?.path) {
+        if (autohotkey?.path) {
           newSettings.autoHotkeyPath = autohotkey.path;
           sources.autoHotkeyPath = autohotkey.found ? `detected (${autohotkey.source})` : 'default';
         }
         
         const notepadpp = pathsResult.paths.notepadppPath;
         status['notepadpp'] = notepadpp?.found ? 'installed' : 'not-installed';
-        if (!newSettings.notepadppPath && notepadpp?.path) {
+        if (notepadpp?.path) {
           newSettings.notepadppPath = notepadpp.path;
           sources.notepadppPath = notepadpp.found ? `detected (${notepadpp.source})` : 'default';
         }
 
         // Pimax (optional)
         const pimax = pathsResult.paths.pimaxPath;
-        if (!newSettings.pimaxPath && pimax?.path) {
+        if (pimax?.path) {
           newSettings.pimaxPath = pimax.path;
           sources.pimaxPath = pimax.found ? `detected (${pimax.source})` : 'default';
         }
@@ -238,6 +261,13 @@ function InstallSoftware() {
     
     // Verify all paths
     verifyAllPaths(root, newSettings);
+    
+    // Check CapFrameX hotkey if installed (but skip if we just configured it)
+    if (status['capframex'] === 'installed' && !skipHotkeyCheckRef.current) {
+      setTimeout(() => checkCapFrameXHotkey(status['capframex']), 500);
+    }
+    // Reset the skip flag
+    skipHotkeyCheckRef.current = false;
     
     // Return the new settings so callers can use them immediately
     return newSettings;
@@ -494,33 +524,79 @@ function InstallSoftware() {
     }
     
     setInstalling(software.id);
-    setOutput(`Installing ${software.name}...\n`);
+    setOutput(`Installing ${software.name}...\nThis may take a minute, please wait...\n`);
 
     try {
-      // Set up streaming output handler
-      const outputHandler = (data) => {
-        setOutput(prev => prev + data.output);
+      // Use appropriate scope based on software type
+      // Portable apps (like CapFrameX) don't support --scope=machine
+      const scope = software.portable ? 'user' : 'machine';
+      const command = `winget install --id=${software.wingetId} --exact --scope=${scope} --accept-package-agreements --accept-source-agreements --disable-interactivity`;
+      const result = await window.dcsMax.executeCommand(command);
+      
+      // Clean ANSI escape codes and progress bar garbage from output
+      const cleanOutput = (text) => {
+        if (!text) return '';
+        // Split into lines and filter out noisy lines
+        const lines = text.split(/\r?\n/);
+        const cleanedLines = lines.filter(line => {
+          // Skip empty lines or lines with only whitespace
+          if (!line.trim()) return false;
+          // Skip spinner lines (just - \ | /)
+          if (/^[\s]*[-\\|\/][\s]*$/.test(line)) return false;
+          // Skip lines that are mostly progress bar characters (█ ▒ or garbled versions)
+          if (/[█▒â–ˆâ–']{3,}/.test(line)) return false;
+          // Skip lines with garbled UTF-8 progress bars
+          if (/â–/.test(line)) return false;
+          // Skip lines that look like progress (MB / MB patterns with mostly whitespace/symbols)
+          if (/^\s*[\d.]+\s*(KB|MB|GB)\s*\/\s*[\d.]+\s*(KB|MB|GB)\s*$/.test(line.trim())) return false;
+          return true;
+        });
+        return cleanedLines
+          .join('\n')
+          .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // ANSI escape codes
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '') // Control characters
+          .replace(/\n{3,}/g, '\n\n')              // Collapse multiple blank lines
+          .trim();
       };
       
-      const completeHandler = async (data) => {
-        setInstalling(null);
-        if (data.exitCode === 0) {
-          setOutput(prev => prev + `\n✓ ${software.name} installed successfully!\n`);
-          setOutput(prev => prev + `\nRefreshing paths and saving to configuration...\n`);
-          // Re-detect all paths and update JSON after successful installation
-          await refreshAfterInstall();
+      // Check for success - winget returns 0 for success, or already installed messages
+      const stdout = result.stdout || '';
+      const cleanedOutput = cleanOutput(stdout);
+      const isAlreadyInstalled = stdout.includes('already installed') || stdout.includes('No available upgrade');
+      const isSuccess = result.success || result.exitCode === 0 || isAlreadyInstalled;
+      
+      if (isSuccess) {
+        if (isAlreadyInstalled) {
+          setOutput(prev => prev + cleanedOutput + `\n\n✓ ${software.name} is already installed!\n`);
         } else {
-          setOutput(prev => prev + `\n✗ Installation may have failed. Check if already installed.\n`);
-          // Still try to recheck - software might already be installed
-          await refreshAfterInstall();
+          setOutput(prev => prev + cleanedOutput + `\n\n✓ ${software.name} installed successfully!\n`);
         }
-      };
+        
+        // Create Start Menu shortcut for portable apps
+        if (software.portable) {
+          setOutput(prev => prev + `\n📁 Creating Start Menu shortcut...\n`);
+          try {
+            await window.dcsMax.createStartMenuShortcut(software.id);
+            setOutput(prev => prev + `✓ Start Menu shortcut created\n`);
+          } catch (e) {
+            setOutput(prev => prev + `⚠️ Could not create shortcut: ${e.message}\n`);
+          }
+        }
+        
+        // Auto-configure CapFrameX hotkey after installation
+        if (software.id === 'capframex') {
+          setOutput(prev => prev + `\n⚙️ Configuring CapFrameX for DCS-Max compatibility...\n`);
+          await configureCapFrameXHotkey();
+        }
+        
+        setOutput(prev => prev + `\nRefreshing paths and saving to configuration...\n`);
+        await refreshAfterInstall();
+      } else {
+        setOutput(prev => prev + cleanedOutput + cleanOutput(result.stderr) + `\n\n✗ Installation failed. Exit code: ${result.exitCode}\n`);
+        await refreshAfterInstall();
+      }
       
-      window.dcsMax.onScriptOutput(outputHandler);
-      window.dcsMax.onScriptComplete(completeHandler);
-
-      // Create a temp PowerShell script to run winget
-      window.dcsMax.executeScriptStream(`powershell -Command "winget install --id=${software.wingetId} --exact --scope=user --accept-package-agreements --accept-source-agreements"`, []);
+      setInstalling(null);
     } catch (err) {
       console.error('Installation error:', err);
       setInstalling(null);
@@ -616,33 +692,107 @@ function InstallSoftware() {
     }
   };
 
+  // CapFrameX Hotkey Configuration Functions
+  const checkCapFrameXHotkey = async (capframexStatus = null) => {
+    // Use passed status or fall back to state
+    const isInstalled = capframexStatus === 'installed' || installStatus['capframex'] === 'installed';
+    
+    if (!isInstalled) {
+      setCapframexHotkeyConfigured(false);
+      return;
+    }
+    
+    setCheckingCapframexHotkey(true);
+    try {
+      const result = await window.dcsMax.getCapFrameXHotkey();
+      if (result.success) {
+        // Check if hotkey is set to Scroll (configured) or F12 (default)
+        setCapframexHotkeyConfigured(result.hotkey === 'Scroll');
+      }
+    } catch (err) {
+      console.error('Failed to check CapFrameX hotkey:', err);
+    }
+    setCheckingCapframexHotkey(false);
+  };
+  
+  const configureCapFrameXHotkey = async () => {
+    try {
+      const result = await window.dcsMax.setCapFrameXHotkey('Scroll');
+      if (result.success) {
+        setCapframexHotkeyConfigured(true);
+        skipHotkeyCheckRef.current = true; // Skip the next hotkey check to avoid state override
+        setOutput(prev => prev + `   → Capture hotkey set to Scroll Lock\n`);
+        setOutput(prev => prev + `   → Prevents conflicts with DCS F12 view key\n`);
+        setOutput(prev => prev + `✓ CapFrameX configured successfully!\n`);
+      } else {
+        setOutput(prev => prev + `⚠️ Failed to configure CapFrameX hotkey\n`);
+      }
+    } catch (err) {
+      console.error('Failed to configure CapFrameX hotkey:', err);
+      setOutput(prev => prev + `⚠️ Error configuring CapFrameX: ${err.message}\n`);
+    }
+  };
+  
+  const restoreCapFrameXDefaultHotkey = async () => {
+    try {
+      const result = await window.dcsMax.setCapFrameXHotkey('F12');
+      if (result.success) {
+        setCapframexHotkeyConfigured(false);
+        setOutput(prev => prev + `⚠️ CapFrameX hotkey restored to F12 (default)\n`);
+        
+        // Show warning alert
+        alert(
+          '⚠️ Performance Testing Disabled\n\n' +
+          'The default F12 hotkey conflicts with DCS\'s F12 view key.\n\n' +
+          'Automated performance testing will NOT work until you reconfigure to use Scroll Lock.'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to restore CapFrameX hotkey:', err);
+      alert('Error: Failed to restore CapFrameX hotkey');
+    }
+  };
+
   const installAll = async () => {
     if (!confirm('Install all required software using winget?\n\nThis will install:\n• CapFrameX\n• AutoHotkey\n• Notepad++')) {
       return;
     }
     
     setInstalling('all');
-    setOutput('Installing all required software...\n');
+    setOutput('Installing all required software...\nThis may take a few minutes, please wait...\n\n');
 
     try {
-      const outputHandler = (data) => {
-        setOutput(prev => prev + data.output);
-      };
+      // Install each software sequentially using executeCommand
+      for (const software of requiredSoftware) {
+        if (installStatus[software.id] === 'installed') {
+          setOutput(prev => prev + `✓ ${software.name} already installed, skipping...\n`);
+          continue;
+        }
+        
+        setOutput(prev => prev + `📦 Installing ${software.name}...\n`);
+        
+        const command = `winget install --id=${software.wingetId} --exact --scope=user --accept-package-agreements --accept-source-agreements`;
+        const result = await window.dcsMax.executeCommand(command);
+        
+        if (result.success || result.exitCode === 0) {
+          setOutput(prev => prev + `✓ ${software.name} installed successfully!\n\n`);
+          
+          // Auto-configure CapFrameX hotkey after installation
+          if (software.id === 'capframex') {
+            setOutput(prev => prev + `⚙️ Configuring CapFrameX hotkey...\n`);
+            await configureCapFrameXHotkey();
+          }
+        } else {
+          setOutput(prev => prev + `⚠️ ${software.name}: ${result.stderr || 'Installation may have failed'}\n\n`);
+        }
+      }
       
-      const completeHandler = async (data) => {
-        setInstalling(null);
-        setOutput(prev => prev + '\n✓ Installation complete! Refreshing and saving...\n');
-        // Re-detect and save after installation
-        await refreshAfterInstall();
-      };
-      
-      window.dcsMax.onScriptOutput(outputHandler);
-      window.dcsMax.onScriptComplete(completeHandler);
-
-      // Run the install script
-      window.dcsMax.executeScriptStream('0-Install-Required-Software/0.0.1-Install-Required-Software.ps1', []);
+      setOutput(prev => prev + '\n✓ Installation complete! Refreshing and saving...\n');
+      await refreshAfterInstall();
+      setInstalling(null);
     } catch (err) {
       console.error('Installation error:', err);
+      setOutput(prev => prev + `\nError: ${err.message}\n`);
       setInstalling(null);
     }
   };
@@ -682,17 +832,17 @@ function InstallSoftware() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="p-6 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-white mb-2">Install Required Software</h2>
-        <p className="text-slate-400 mb-6">
-          DCS-Max requires the following software to be installed for full functionality. 
-          All software is installed via Windows Package Manager (winget).
-        </p>
-
-        {/* Save All Button - Visible at Top */}
-        <div className="mb-6 flex justify-end">
+        {/* Header with Save Button */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Software & Configuration</h2>
+            <p className="text-slate-400">
+              Configure paths and install required software for DCS-Max optimization and testing.
+            </p>
+          </div>
           <button
             onClick={handleSavePaths}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-500 rounded transition-colors font-semibold"
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-500 rounded transition-colors font-semibold flex-shrink-0 ml-4"
             title="Save all application and VR paths to configuration"
           >
             <Save className="w-4 h-4" />
@@ -700,17 +850,51 @@ function InstallSoftware() {
           </button>
         </div>
 
-        {/* VR Headset Detection - MOVED BELOW APPLICATION PATHS */}
-        
-        {/* Application Paths Configuration */}
+        {/* Output Console - At very top for visibility */}
+        {(output || installing) && (
+          <div ref={outputRef} className="mb-6">
+            <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+              {installing ? (
+                <Loader className="w-5 h-5 mr-2 animate-spin text-blue-400" />
+              ) : (
+                <CheckCircle className="w-5 h-5 mr-2 text-green-400" />
+              )}
+              Installation {installing ? 'in Progress' : 'Complete'}
+            </h3>
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 max-h-64 overflow-y-auto">
+              <pre className="text-sm text-slate-300 font-mono whitespace-pre-wrap">{output}</pre>
+            </div>
+          </div>
+        )}
+
+        {/* CONSOLIDATED SOFTWARE & PATHS SECTION */}
         <div className="mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white flex items-center">
-                <FolderOpen className="w-5 h-5 mr-2 text-yellow-400" />
-                Application Paths
+                <Package className="w-5 h-5 mr-2 text-blue-400" />
+                Software & Configuration Paths
               </h3>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={installAll}
+                  disabled={installing !== null || allInstalled || checkingStatus}
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded transition-colors text-sm font-semibold ${
+                    allInstalled 
+                      ? 'bg-green-600/30 text-green-400 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white'
+                  }`}
+                  title={allInstalled ? 'All software already installed' : 'Install all missing software'}
+                >
+                  {installing === 'all' ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : allInstalled ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{allInstalled ? 'All Installed' : 'Install All'}</span>
+                </button>
                 <button
                   onClick={detectAllPaths}
                   disabled={checkingStatus}
@@ -730,52 +914,168 @@ function InstallSoftware() {
                 </button>
               </div>
             </div>
-            <div className="space-y-3">
-              {pathFields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center space-x-2">
-                    <span>{field.label}</span>
-                    {field.required && <span className="text-red-400">*</span>}
-                    {getPathStatusIcon(field.key)}
-                    {pathStatus[field.key] === 'valid' && (
-                      <span className="text-xs text-green-400">Found</span>
-                    )}
-                    {pathStatus[field.key] === 'invalid' && (
-                      <span className="text-xs text-red-400">Not found</span>
-                    )}
-                    {pathSources[field.key] && (
-                      <span className="text-xs text-slate-500">({pathSources[field.key]})</span>
-                    )}
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={settings[field.key]}
-                      onChange={(e) => {
-                        setSettings({ ...settings, [field.key]: e.target.value });
-                        setPathSources(prev => ({ ...prev, [field.key]: 'manual' }));
-                        setPathStatus(prev => ({ ...prev, [field.key]: 'unknown' }));
-                      }}
-                      onBlur={(e) => verifySinglePath(field.key, e.target.value)}
-                      className={`flex-1 px-3 py-1.5 bg-slate-700 text-slate-200 rounded border text-sm focus:outline-none ${
-                        pathStatus[field.key] === 'valid' 
-                          ? 'border-green-500/50 focus:border-green-500' 
-                          : pathStatus[field.key] === 'invalid'
-                            ? 'border-red-500/50 focus:border-red-500'
-                            : 'border-slate-600 focus:border-blue-500'
-                      }`}
-                      placeholder={`Path to ${field.label.toLowerCase()}`}
-                    />
-                    <button
-                      onClick={() => browseForPath(field.key)}
-                      className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded transition-colors"
-                      title="Browse..."
-                    >
-                      <FolderOpen className="w-4 h-4" />
-                    </button>
+
+            {/* DCS Paths Group */}
+            <div className="mb-6">
+              <div className="space-y-3">
+                {dcsPathFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center space-x-2">
+                      <span>{field.label}</span>
+                      {field.required && <span className="text-red-400">*</span>}
+                      {getPathStatusIcon(field.key)}
+                      {pathStatus[field.key] === 'valid' && (
+                        <span className="text-xs text-green-400">Configured</span>
+                      )}
+                      {pathStatus[field.key] === 'invalid' && (
+                        <span className="text-xs text-red-400">Not found</span>
+                      )}
+                      {pathSources[field.key] && (
+                        <span className="text-xs text-slate-500">({pathSources[field.key]})</span>
+                      )}
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={settings[field.key]}
+                        onChange={(e) => {
+                          setSettings({ ...settings, [field.key]: e.target.value });
+                          setPathSources(prev => ({ ...prev, [field.key]: 'manual' }));
+                          setPathStatus(prev => ({ ...prev, [field.key]: 'unknown' }));
+                        }}
+                        onBlur={(e) => verifySinglePath(field.key, e.target.value)}
+                        className={`flex-1 px-3 py-1.5 bg-slate-700 text-slate-200 rounded border text-sm focus:outline-none ${
+                          pathStatus[field.key] === 'valid' 
+                            ? 'border-green-500/50 focus:border-green-500' 
+                            : pathStatus[field.key] === 'invalid'
+                              ? 'border-red-500/50 focus:border-red-500'
+                              : 'border-slate-600 focus:border-blue-500'
+                        }`}
+                        placeholder={`Path to ${field.label.toLowerCase()}`}
+                      />
+                      <button
+                        onClick={() => browseForPath(field.key)}
+                        className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded transition-colors"
+                        title="Browse..."
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Required Software Group */}
+            <div>
+              <div className="space-y-3">
+                {softwarePathFields.map((field) => {
+                  const status = installStatus[field.statusKey];
+                  const isInstalled = status === 'installed';
+                  
+                  return (
+                    <div key={field.key}>
+                      <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center space-x-2">
+                        <span>{field.label}</span>
+                        {getPathStatusIcon(field.key)}
+                        {isInstalled && pathStatus[field.key] === 'valid' && (
+                          <span className="text-xs text-green-400">Installed</span>
+                        )}
+                        {!isInstalled && (
+                          <span className="text-xs text-red-400">Not installed</span>
+                        )}
+                        {pathSources[field.key] && isInstalled && (
+                          <span className="text-xs text-slate-500">({pathSources[field.key]})</span>
+                        )}
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={settings[field.key]}
+                          onChange={(e) => {
+                            setSettings({ ...settings, [field.key]: e.target.value });
+                            setPathSources(prev => ({ ...prev, [field.key]: 'manual' }));
+                            setPathStatus(prev => ({ ...prev, [field.key]: 'unknown' }));
+                          }}
+                          onBlur={(e) => verifySinglePath(field.key, e.target.value)}
+                          disabled={!isInstalled}
+                          className={`flex-1 px-3 py-1.5 bg-slate-700 text-slate-200 rounded border text-sm focus:outline-none disabled:bg-slate-800 disabled:text-slate-500 ${
+                            !isInstalled
+                              ? 'border-slate-700'
+                              : pathStatus[field.key] === 'valid' 
+                                ? 'border-green-500/50 focus:border-green-500' 
+                                : pathStatus[field.key] === 'invalid'
+                                  ? 'border-red-500/50 focus:border-red-500'
+                                  : 'border-slate-600 focus:border-blue-500'
+                          }`}
+                          placeholder={isInstalled ? `Path to ${field.label.toLowerCase()}` : 'Not installed'}
+                        />
+                        <button
+                          onClick={() => browseForPath(field.key)}
+                          disabled={!isInstalled}
+                          className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-800 disabled:text-slate-500 rounded transition-colors"
+                          title="Browse..."
+                        >
+                          <FolderOpen className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => installSoftware(requiredSoftware.find(s => s.id === field.statusKey))}
+                          disabled={installing !== null || isInstalled}
+                          className={`px-3 py-1.5 rounded transition-colors text-sm font-medium ${
+                            isInstalled
+                              ? 'bg-green-600/30 text-green-400 cursor-not-allowed'
+                              : 'bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white'
+                          }`}
+                          title={isInstalled ? 'Already installed' : 'Install this software'}
+                        >
+                          {installing === field.statusKey ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : isInstalled ? (
+                            <CheckCircle className="w-4 h-4" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      
+                      {/* CapFrameX Hotkey Configuration */}
+                      {field.statusKey === 'capframex' && isInstalled && (
+                        <div className={`border-l-4 pl-3 mt-2 ${capframexHotkeyConfigured ? 'border-green-500' : 'border-yellow-500'}`}>
+                          <div className="flex items-center space-x-2 text-xs">
+                            {checkingCapframexHotkey ? (
+                              <Loader className="w-3.5 h-3.5 text-slate-400 animate-spin" />
+                            ) : capframexHotkeyConfigured ? (
+                              <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                            ) : (
+                              <AlertCircle className="w-3.5 h-3.5 text-yellow-400" />
+                            )}
+                            <span className={capframexHotkeyConfigured ? 'text-green-400' : 'text-yellow-400'}>
+                              Capture Hotkey: {capframexHotkeyConfigured ? 'Scroll Lock' : 'F12 (Default)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-xs text-slate-400 mt-1">
+                            {capframexHotkeyConfigured ? (
+                              <span>✓ Configured for DCS-Max compatibility</span>
+                            ) : (
+                              <span>⚠️ Conflicts with DCS F12 view key - testing disabled</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={capframexHotkeyConfigured ? restoreCapFrameXDefaultHotkey : configureCapFrameXHotkey}
+                            className={`mt-2 px-3 py-1 rounded text-xs transition-colors ${
+                              capframexHotkeyConfigured
+                                ? 'bg-slate-600 hover:bg-slate-500'
+                                : 'bg-blue-600 hover:bg-blue-500'
+                            }`}
+                          >
+                            {capframexHotkeyConfigured ? 'Restore Default (F12)' : 'Configure for DCS-Max'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -872,136 +1172,6 @@ function InstallSoftware() {
             </div>
           </div>
         </div>
-
-        {/* Software Installation */}
-        <div className="mb-6 p-4 rounded-lg border bg-slate-800 border-slate-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Package className="w-6 h-6 text-blue-400" />
-              <div>
-                <div className="font-semibold text-white">
-                  {checkingStatus 
-                    ? 'Checking installed software...' 
-                    : allInstalled 
-                      ? 'All required software is installed' 
-                      : 'Some software needs to be installed'}
-                </div>
-                <div className="text-sm text-slate-400">
-                  {checkingStatus 
-                    ? 'Please wait...'
-                    : `${Object.values(installStatus).filter(s => s === 'installed').length} of ${requiredSoftware.length} installed`}
-                </div>
-              </div>
-            </div>
-            {!installing && !checkingStatus && (
-              <button
-                onClick={installAll}
-                disabled={installing !== null || allInstalled}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  allInstalled 
-                    ? 'bg-green-600/50 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700'
-                }`}
-              >
-                {installing === 'all' ? (
-                  <Loader className="w-4 h-4 animate-spin" />
-                ) : allInstalled ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                <span>{allInstalled ? 'All Installed' : 'Install All'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Software List */}
-        <div className="space-y-4 mb-6">
-          {requiredSoftware.map((software) => (
-            <div 
-              key={software.id}
-              className={`p-4 bg-slate-800 rounded-lg border ${
-                installStatus[software.id] === 'installed' 
-                  ? 'border-green-500/50' 
-                  : installStatus[software.id] === 'not-installed'
-                    ? 'border-red-500/50'
-                    : 'border-slate-700'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  {getStatusIcon(software.id)}
-                  <div className="flex-1">
-                    <div className="font-semibold text-white flex items-center space-x-2">
-                      <span>{software.name}</span>
-                      {software.required && (
-                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Required</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-slate-400 mt-1">{software.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className={`text-xs font-medium ${
-                        installStatus[software.id] === 'installed' 
-                          ? 'text-green-400' 
-                          : installStatus[software.id] === 'not-installed'
-                            ? 'text-red-400'
-                            : 'text-slate-400'
-                      }`}>
-                        {getStatusText(software.id)}
-                      </span>
-                      <a 
-                        href={software.website}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.dcsMax.openExternal(software.website);
-                        }}
-                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>Website</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => installSoftware(software)}
-                  disabled={installing !== null || installStatus[software.id] === 'installed'}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ml-4 ${
-                    installStatus[software.id] === 'installed'
-                      ? 'bg-green-600/30 text-green-400 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 disabled:bg-slate-700'
-                  }`}
-                >
-                  {installing === software.id ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : installStatus[software.id] === 'installed' ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  <span>{
-                    installing === software.id 
-                      ? 'Installing...' 
-                      : installStatus[software.id] === 'installed' 
-                        ? 'Installed' 
-                        : 'Install'
-                  }</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Output Console */}
-        {output && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-3">Installation Output</h3>
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 max-h-64 overflow-y-auto">
-              <pre className="text-sm text-slate-300 font-mono whitespace-pre-wrap">{output}</pre>
-            </div>
-          </div>
-        )}
 
         {/* Info Box */}
         <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">

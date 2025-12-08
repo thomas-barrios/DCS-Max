@@ -7,9 +7,10 @@ Set-Location $scriptDir
 
 Write-Host "Building DCS-Max UI..." -ForegroundColor Cyan
 
-# Clean browser cache before building
-Write-Host "Cleaning browser cache..." -ForegroundColor Yellow
-# Cache paths (matching dev-build-and-run.ps1 for consistency)
+# Clean all caches before building
+Write-Host "Cleaning all caches..." -ForegroundColor Yellow
+
+# Clean browser cache
 $cachePaths = @(
     "$env:APPDATA\DCS-Max",
     "$env:LOCALAPPDATA\DCS-Max",
@@ -26,7 +27,13 @@ foreach ($path in $cachePaths) {
         Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-Write-Host "Cache cleaned!" -ForegroundColor Green
+
+# Clean Vite cache and build directories
+Write-Host "Cleaning Vite cache and dist..." -ForegroundColor Yellow
+Remove-Item -Path "node_modules\.vite" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "dist" -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "All caches cleaned!" -ForegroundColor Green
 
 # Rebuild the C# application
 Write-Host "`nRebuilding the C# application..." -ForegroundColor Yellow

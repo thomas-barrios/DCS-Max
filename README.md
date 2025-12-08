@@ -426,7 +426,7 @@ Happy Flying, Happy testing!
 ### Quick Emergency Recovery
 ```powershell
 # If system becomes unstable, run these in order:
-.\1-Backup-restore\1.3.2-services-restore.ps1    # Restore services
+.\1-Backup-restore\1.3.1-services-restore.ps1    # Restore services
 .\1-Backup-restore\1.2.3-tasks-restore.ps1       # Restore tasks
 .\1-Backup-restore\1.1.3-registry-restore.reg    # Restore registry
 Restart-Computer
@@ -443,7 +443,7 @@ DCS-Max/
 │   ├── 1.2.1-tasks-backup.ps1
 │   ├── 1.2.3-tasks-restore.ps1
 │   ├── 1.3.1-services-backup.ps1
-│   ├── 1.3.2-services-restore.ps1
+│   ├── 1.3.1-services-restore.ps1
 │   ├── 1.4.1-dcs-backup.ps1
 │   ├── 1.4.2-dcs-restore.ps1
 │   └── 1.4.3-schedule-dcs-backup-at-logon.ps1

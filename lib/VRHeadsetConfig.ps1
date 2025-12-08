@@ -326,15 +326,18 @@ function Get-VRBackupGroups {
 # EXPORTS
 # ============================================
 
-Export-ModuleMember -Function @(
-    'Detect-InstalledHeadsets',
-    'Get-MetaQuestPath',
-    'Get-SteamInstallPath',
-    'Get-SteamVRPath',
-    'Get-PimaxPath',
-    'Get-HeadsetPath',
-    'Get-VRBackupGroups',
-    'Test-MetaQuestInstalled',
-    'Test-SteamVRInstalled',
-    'Test-PimaxInstalled'
-)
+# Only export when loaded as a module (not when dot-sourced or run directly)
+if ($MyInvocation.MyCommand.ScriptBlock.Module) {
+    Export-ModuleMember -Function @(
+        'Detect-InstalledHeadsets',
+        'Get-MetaQuestPath',
+        'Get-SteamInstallPath',
+        'Get-SteamVRPath',
+        'Get-PimaxPath',
+        'Get-HeadsetPath',
+        'Get-VRBackupGroups',
+        'Test-MetaQuestInstalled',
+        'Test-SteamVRInstalled',
+        'Test-PimaxInstalled'
+    )
+}

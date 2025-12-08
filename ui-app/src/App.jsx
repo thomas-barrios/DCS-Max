@@ -164,6 +164,9 @@ function App() {
               </a>
             </div>
             <div>MIT License</div>
+            <div className="text-[10px] text-slate-600 mt-1" title={`Build: ${typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'}`}>
+              Build: {typeof __BUILD_TIME__ !== 'undefined' ? new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'dev'}
+            </div>
           </div>
         </div>
       </div>

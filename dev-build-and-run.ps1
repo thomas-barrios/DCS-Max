@@ -23,14 +23,24 @@ $cachePaths = @(
 
 Write-Host "=== DCS-Max Build and Run ===" -ForegroundColor Cyan
 
-# Clean browser cache before building
-Write-Host "`nCleaning browser cache..." -ForegroundColor Yellow
+# Clean all caches before building
+Write-Host "`nCleaning all caches..." -ForegroundColor Yellow
+
+# Clean browser cache
 foreach ($path in $cachePaths) {
     if (Test-Path $path) {
         Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-Write-Host "Cache cleaned!" -ForegroundColor Green
+
+# Clean Vite cache and build directories
+Write-Host "Cleaning Vite cache and dist..." -ForegroundColor Yellow
+$viteCachePath = Join-Path $scriptDir "ui-app\node_modules\.vite"
+$distPath = Join-Path $scriptDir "ui-app\dist"
+Remove-Item -Path $viteCachePath -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $distPath -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "All caches cleaned!" -ForegroundColor Green
 
 # Close existing DCS-Max instance BEFORE building
 Write-Host "`nChecking for existing DCS-Max instances..." -ForegroundColor Yellow

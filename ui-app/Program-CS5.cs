@@ -352,6 +352,19 @@ namespace DcsMaxLauncher
                         return this._invoke('readOptionsLua', [optionsLuaPath]);
                     },
 
+                    // CapFrameX Configuration
+                    getCapFrameXHotkey: function() {
+                        return this._invoke('getCapFrameXHotkey', []);
+                    },
+                    setCapFrameXHotkey: function(hotkey) {
+                        return this._invoke('setCapFrameXHotkey', [hotkey]);
+                    },
+                    
+                    // Start Menu Shortcuts
+                    createStartMenuShortcut: function(softwareId) {
+                        return this._invoke('createStartMenuShortcut', [softwareId]);
+                    },
+
                     // Calibration Wizard Operations
                     launchVRSoftware: function(hardware, exePath) {
                         return this._invoke('launchVRSoftware', [hardware, exePath]);
@@ -513,6 +526,15 @@ namespace DcsMaxLauncher
                         return; // No response needed
                     case "readOptionsLua":
                         result = await ReadOptionsLua(args[0] != null ? args[0].Value<string>() : null);
+                        break;
+                    case "getCapFrameXHotkey":
+                        result = GetCapFrameXHotkey();
+                        break;
+                    case "setCapFrameXHotkey":
+                        result = SetCapFrameXHotkey(args[0] != null ? args[0].Value<string>() : null);
+                        break;
+                    case "createStartMenuShortcut":
+                        result = CreateStartMenuShortcut(args[0] != null ? args[0].Value<string>() : null);
                         break;
                     case "launchVRSoftware":
                         result = LaunchVRSoftware(
@@ -738,6 +760,171 @@ namespace DcsMaxLauncher
             
             // Return as-is (could be a Lua expression or other type)
             return rawValue;
+        }
+
+        // ========== CapFrameX Configuration Methods ==========
+        
+        private object GetCapFrameXHotkey()
+        {
+            try
+            {
+                string configPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "CapFrameX", "Configuration", "AppSettings.json"
+                );
+                
+                if (!File.Exists(configPath))
+                {
+                    return new { success = false, error = "CapFrameX configuration file not found" };
+                }
+                
+                string json = File.ReadAllText(configPath);
+                var config = JObject.Parse(json);
+                
+                string hotkey = config["CaptureHotKey"]?.ToString() ?? "F12";
+                
+                return new { 
+                    success = true, 
+                    hotkey = hotkey,
+                    path = configPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+        
+        private object SetCapFrameXHotkey(string hotkey)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(hotkey))
+                {
+                    return new { success = false, error = "Hotkey value is required" };
+                }
+                
+                string configPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "CapFrameX", "Configuration", "AppSettings.json"
+                );
+                
+                if (!File.Exists(configPath))
+                {
+                    return new { success = false, error = "CapFrameX configuration file not found" };
+                }
+                
+                // Read the JSON config
+                string json = File.ReadAllText(configPath);
+                var config = JObject.Parse(json);
+                
+                // Update the CaptureHotKey value
+                config["CaptureHotKey"] = hotkey;
+                
+                // Write back to file with proper formatting
+                string updatedJson = config.ToString(Formatting.Indented);
+                File.WriteAllText(configPath, updatedJson);
+                
+                return new { 
+                    success = true, 
+                    hotkey = hotkey,
+                    path = configPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        private object CreateStartMenuShortcut(string softwareId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(softwareId))
+                {
+                    return new { success = false, error = "Software ID is required" };
+                }
+                
+                string exePath = null;
+                string shortcutName = null;
+                
+                // Find the executable based on software ID
+                switch (softwareId.ToLower())
+                {
+                    case "capframex":
+                        // Search in WinGet packages folder
+                        string wingetPackagesPath = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                            "Microsoft", "WinGet", "Packages");
+                        
+                        if (Directory.Exists(wingetPackagesPath))
+                        {
+                            var capframexDirs = Directory.GetDirectories(wingetPackagesPath, "CXWorld.CapFrameX*");
+                            foreach (string dir in capframexDirs)
+                            {
+                                string candidatePath = Path.Combine(dir, "CapFrameX.exe");
+                                if (File.Exists(candidatePath))
+                                {
+                                    exePath = candidatePath;
+                                    break;
+                                }
+                            }
+                        }
+                        shortcutName = "CapFrameX";
+                        break;
+                    default:
+                        return new { success = false, error = $"Unknown software ID: {softwareId}" };
+                }
+                
+                if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                {
+                    return new { success = false, error = $"Could not find executable for {softwareId}" };
+                }
+                
+                // Create the shortcut using PowerShell (avoids COM interop issues)
+                string startMenuPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Microsoft", "Windows", "Start Menu", "Programs");
+                
+                string shortcutPath = Path.Combine(startMenuPath, $"{shortcutName}.lnk");
+                string workingDir = Path.GetDirectoryName(exePath);
+                
+                // PowerShell script to create shortcut
+                string psScript = $@"
+$WshShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut('{shortcutPath.Replace("'", "''")}')
+$Shortcut.TargetPath = '{exePath.Replace("'", "''")}'
+$Shortcut.WorkingDirectory = '{workingDir.Replace("'", "''")}'
+$Shortcut.Description = '{shortcutName} - Installed via DCS-Max'
+$Shortcut.Save()
+";
+                
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript.Replace("\"", "\\\"")}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                
+                using (var process = Process.Start(psi))
+                {
+                    process.WaitForExit(5000);
+                }
+                
+                return new { 
+                    success = true, 
+                    path = shortcutPath,
+                    target = exePath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
         }
 
         // ========== Performance Optimization Config Methods (O&O ShutUp10-style format) ==========
@@ -2177,6 +2364,28 @@ ExitApp
                 }
             }
 
+            // Check WinGet packages folder for portable installs
+            try
+            {
+                string wingetPackagesPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Microsoft", "WinGet", "Packages");
+                
+                if (Directory.Exists(wingetPackagesPath))
+                {
+                    var capframexDirs = Directory.GetDirectories(wingetPackagesPath, "CXWorld.CapFrameX*");
+                    foreach (string dir in capframexDirs)
+                    {
+                        string exePath = Path.Combine(dir, "CapFrameX.exe");
+                        if (File.Exists(exePath))
+                        {
+                            return new { found = true, path = exePath, source = "winget" };
+                        }
+                    }
+                }
+            }
+            catch { }
+
             return new { found = false, path = @"C:\Program Files (x86)\CapFrameX\CapFrameX.exe", source = "default" };
         }
 
@@ -2299,6 +2508,28 @@ ExitApp
                     return new { found = true, path = path, source = "filesystem" };
                 }
             }
+
+            // Check WinGet packages folder for portable installs
+            try
+            {
+                string wingetPackagesPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Microsoft", "WinGet", "Packages");
+                
+                if (Directory.Exists(wingetPackagesPath))
+                {
+                    var notepadDirs = Directory.GetDirectories(wingetPackagesPath, "Notepad++*");
+                    foreach (string dir in notepadDirs)
+                    {
+                        string exePath = Path.Combine(dir, "notepad++.exe");
+                        if (File.Exists(exePath))
+                        {
+                            return new { found = true, path = exePath, source = "winget" };
+                        }
+                    }
+                }
+            }
+            catch { }
 
             return new { found = false, path = @"C:\Program Files\Notepad++\notepad++.exe", source = "default" };
         }
