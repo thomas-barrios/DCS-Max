@@ -4,7 +4,7 @@
     DCS-Max Cache Cleaning Script
 .DESCRIPTION
     Cleans various caches that can affect DCS performance.
-    Reads from performance-optimizations.ini to selectively clean only enabled caches.
+    Reads from config-optimizations.json to selectively clean only enabled caches.
 .PARAMETER NoPause
     Skip the pause at the end of execution
 .NOTES
@@ -16,29 +16,58 @@ param(
     [switch]$NoPause
 )
 
-# Import shared config parser
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$configParserPath = Join-Path (Split-Path -Parent $scriptDir) "Assets\config-parser.ps1"
-if (Test-Path $configParserPath) {
-    . $configParserPath
+# Load shared library functions
+$rootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$libPath = Join-Path $rootDir "lib\Common.ps1"
+if (Test-Path $libPath) {
+    . $libPath
 } else {
-    Write-Host "Warning: Config parser not found at $configParserPath" -ForegroundColor Yellow
-    Write-Host "All cache cleaning options will be enabled by default." -ForegroundColor Yellow
+    Write-Host "Warning: Common library not found at $libPath" -ForegroundColor Yellow
 }
 
-# Get optimization config
-$configPath = Join-Path $scriptDir "performance-optimizations.ini"
-$config = @{}
-if (Get-Command Get-OptimizationConfig -ErrorAction SilentlyContinue) {
-    $config = Get-OptimizationConfig -ConfigPath $configPath
+# Get root directory and load config-optimizations.json and config-global.json
+$configPath = Join-Path $rootDir "config-optimizations.json"
+$globalConfigPath = Join-Path $rootDir "config-global.json"
+
+# Load global configuration for paths
+$globalConfig = Load-ConfigFile -configPath $globalConfigPath -configName "config-global.json"
+
+# Load configuration
+$configData = Load-ConfigFile -configPath $configPath -configName "config-optimizations.json"
+
+# Get DCS Saved Games location from config (expand environment variables)
+$savedGamesPath = if ($globalConfig.paths -and $globalConfig.paths.savedGamesPath) {
+    $path = $globalConfig.paths.savedGamesPath
+    # Expand environment variables in the path
+    [Environment]::ExpandEnvironmentVariables($path)
+} else {
+    # Fallback to default location
+    "$env:USERPROFILE\Saved Games"
+    Write-Host "Warning: savedGamesPath not found in config-global.json, using default: $savedGamesPath" -ForegroundColor Yellow
 }
 
-# Helper function to check if optimization is enabled
-function Test-OptEnabled {
-    param([string]$Id)
-    if ($config.Count -eq 0) { return $true }  # Default to enabled if no config
-    if (-not $config.ContainsKey($Id)) { return $true }  # Default to enabled if not in config
-    return $config[$Id]
+# Helper function for DCS cache cleaning
+function Clean-DcsCache {
+    param(
+        [string]$CacheId,
+        [string]$SubFolder,
+        [string]$Description
+    )
+    
+    if (Test-OptEnabled $CacheId $configData.cacheOptimizations) {
+        $cachePath = Join-Path $savedGamesPath $SubFolder
+        if (Test-Path $cachePath) {
+            Write-Host "[$CacheId] Cleaning $Description..." -ForegroundColor Green
+            Write-Host "       Path: $cachePath" -ForegroundColor Gray
+            Remove-Item -Path $cachePath -Recurse -Force -ErrorAction SilentlyContinue
+            $cleanedCount++
+        } else {
+            Write-Host "[$CacheId] DCS $Description folder not found (already clean)" -ForegroundColor Gray
+            Write-Host "       Path: $cachePath" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "[$CacheId] DCS $Description - SKIPPED (disabled)" -ForegroundColor Yellow
+    }
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -49,51 +78,58 @@ Write-Host ""
 $cleanedCount = 0
 
 # C001 - NVIDIA DXCache
-if (Test-OptEnabled "C001") {
+if (Test-OptEnabled "C001" $configData.cacheOptimizations) {
     $dxCachePath = Join-Path $env:LOCALAPPDATA "NVIDIA\DXCache"
     if (Test-Path $dxCachePath) {
         Write-Host "[C001] Cleaning NVIDIA DXCache..." -ForegroundColor Green
+        Write-Host "       Path: $dxCachePath" -ForegroundColor Gray
         Remove-Item -Path $dxCachePath -Recurse -Force -ErrorAction SilentlyContinue
         $cleanedCount++
     } else {
         Write-Host "[C001] NVIDIA DXCache not found (already clean)" -ForegroundColor Gray
+        Write-Host "       Path: $dxCachePath" -ForegroundColor Gray
     }
 } else {
     Write-Host "[C001] NVIDIA DXCache - SKIPPED (disabled)" -ForegroundColor Yellow
 }
 
 # C002 - NVIDIA GLCache
-if (Test-OptEnabled "C002") {
+if (Test-OptEnabled "C002" $configData.cacheOptimizations) {
     $glCachePath = Join-Path $env:LOCALAPPDATA "NVIDIA\GLCache"
     if (Test-Path $glCachePath) {
         Write-Host "[C002] Cleaning NVIDIA GLCache..." -ForegroundColor Green
+        Write-Host "       Path: $glCachePath" -ForegroundColor Gray
         Remove-Item -Path $glCachePath -Recurse -Force -ErrorAction SilentlyContinue
         $cleanedCount++
     } else {
         Write-Host "[C002] NVIDIA GLCache not found (already clean)" -ForegroundColor Gray
+        Write-Host "       Path: $glCachePath" -ForegroundColor Gray
     }
 } else {
     Write-Host "[C002] NVIDIA GLCache - SKIPPED (disabled)" -ForegroundColor Yellow
 }
 
 # C003 - NVIDIA OptixCache
-if (Test-OptEnabled "C003") {
+if (Test-OptEnabled "C003" $configData.cacheOptimizations) {
     $optixCachePath = Join-Path $env:LOCALAPPDATA "NVIDIA\OptixCache"
     if (Test-Path $optixCachePath) {
         Write-Host "[C003] Cleaning NVIDIA OptixCache..." -ForegroundColor Green
+        Write-Host "       Path: $optixCachePath" -ForegroundColor Gray
         Remove-Item -Path $optixCachePath -Recurse -Force -ErrorAction SilentlyContinue
         $cleanedCount++
     } else {
         Write-Host "[C003] NVIDIA OptixCache not found (already clean)" -ForegroundColor Gray
+        Write-Host "       Path: $optixCachePath" -ForegroundColor Gray
     }
 } else {
     Write-Host "[C003] NVIDIA OptixCache - SKIPPED (disabled)" -ForegroundColor Yellow
 }
 
 # C004 - Windows Temp
-if (Test-OptEnabled "C004") {
+if (Test-OptEnabled "C004" $configData.cacheOptimizations) {
     Write-Host "[C004] Cleaning Windows Temp files..." -ForegroundColor Green
     $tempPath = $env:TEMP
+    Write-Host "       Path: $tempPath" -ForegroundColor Gray
     if (Test-Path $tempPath) {
         Get-ChildItem -Path $tempPath -Force -ErrorAction SilentlyContinue | 
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -104,64 +140,13 @@ if (Test-OptEnabled "C004") {
 }
 
 # C005 - DCS Temp
-if (Test-OptEnabled "C005") {
-    $dcsVersions = @("DCS", "DCS.openbeta")
-    $foundAny = $false
-    foreach ($ver in $dcsVersions) {
-        $dcsTempPath = Join-Path $env:USERPROFILE "Saved Games\$ver\Temp"
-        if (Test-Path $dcsTempPath) {
-            Write-Host "[C005] Cleaning $ver Temp folder..." -ForegroundColor Green
-            Remove-Item -Path $dcsTempPath -Recurse -Force -ErrorAction SilentlyContinue
-            $cleanedCount++
-            $foundAny = $true
-        }
-    }
-    if (-not $foundAny) {
-        Write-Host "[C005] DCS Temp folders not found (already clean)" -ForegroundColor Gray
-    }
-} else {
-    Write-Host "[C005] DCS Temp - SKIPPED (disabled)" -ForegroundColor Yellow
-}
+Clean-DcsCache -CacheId "C005" -SubFolder "Temp" -Description "Temp"
 
 # C006 - DCS fxo (shader effects)
-if (Test-OptEnabled "C006") {
-    $dcsVersions = @("DCS", "DCS.openbeta")
-    $foundAny = $false
-    foreach ($ver in $dcsVersions) {
-        $fxoPath = Join-Path $env:USERPROFILE "Saved Games\$ver\fxo"
-        if (Test-Path $fxoPath) {
-            Write-Host "[C006] Cleaning $ver fxo folder..." -ForegroundColor Green
-            Remove-Item -Path $fxoPath -Recurse -Force -ErrorAction SilentlyContinue
-            $cleanedCount++
-            $foundAny = $true
-        }
-    }
-    if (-not $foundAny) {
-        Write-Host "[C006] DCS fxo folders not found (already clean)" -ForegroundColor Gray
-    }
-} else {
-    Write-Host "[C006] DCS fxo - SKIPPED (disabled)" -ForegroundColor Yellow
-}
+Clean-DcsCache -CacheId "C006" -SubFolder "fxo" -Description "fxo"
 
 # C007 - DCS metashaders2
-if (Test-OptEnabled "C007") {
-    $dcsVersions = @("DCS", "DCS.openbeta")
-    $foundAny = $false
-    foreach ($ver in $dcsVersions) {
-        $metashadersPath = Join-Path $env:USERPROFILE "Saved Games\$ver\metashaders2"
-        if (Test-Path $metashadersPath) {
-            Write-Host "[C007] Cleaning $ver metashaders2 folder..." -ForegroundColor Green
-            Remove-Item -Path $metashadersPath -Recurse -Force -ErrorAction SilentlyContinue
-            $cleanedCount++
-            $foundAny = $true
-        }
-    }
-    if (-not $foundAny) {
-        Write-Host "[C007] DCS metashaders2 folders not found (already clean)" -ForegroundColor Gray
-    }
-} else {
-    Write-Host "[C007] DCS metashaders2 - SKIPPED (disabled)" -ForegroundColor Yellow
-}
+Clean-DcsCache -CacheId "C007" -SubFolder "metashaders2" -Description "metashaders2"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan

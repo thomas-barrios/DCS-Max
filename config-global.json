@@ -1,0 +1,32 @@
+{
+  "paths": {
+    "capframex": "%USERPROFILE%\\AppData\\Local\\Microsoft\\WinGet\\Packages\\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\\CapFrameX.exe",
+    "dcsInstallation": "%ProgramFiles%\\Eagle Dynamics\\DCS World",
+    "dcsExe": "%ProgramFiles%\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
+    "notepadpp": "%ProgramFiles%\\Notepad++\\notepad++.exe",
+    "pimax": "%ProgramFiles%\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe",
+    "autohotkey": "%ProgramFiles%\\AutoHotkey\\v2\\AutoHotkey64.exe",
+    "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
+    "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures"
+  },
+  "vr": {
+    "hardware": "",
+    "enabled": false
+  },
+  "description": "DCS-Max Global Configuration - Paths, VR hardware, timing, shared by all scripts",
+  "vrHeadsets": {
+    "steamvr": {
+      "path": "%ProgramFiles(x86)%\\Steam\\steamapps\\common\\SteamVR\\bin\\win64\\vrstartup.exe",
+      "name": "SteamVR (Vive/Index/Reverb G2)"
+    },
+    "metaquest": {
+      "path": "%ProgramFiles%\\Meta\\MetaQuestLink\\MetaQuestLink.exe",
+      "name": "Meta Quest (Link/Air Link)"
+    },
+    "pimax": {
+      "path": "%ProgramFiles%\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe",
+      "name": "Pimax"
+    }
+  },
+  "version": "2.0.0"
+}

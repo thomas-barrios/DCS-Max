@@ -315,7 +315,7 @@ Windows services run continuously in the background. Disabling non-essential ser
 
 ## 🧹 Cache Cleaning
 
-**Script:** `5-Optimization/5.4.1-clean-caches.bat`
+**Script:** `5-Optimization/5.4.1-clean-caches.ps1`
 
 Shader and graphics caches can become corrupted or bloated over time, causing stutters and long loading times. Cleaning these caches forces fresh shader compilation.
 

@@ -64,7 +64,7 @@ function SettingsPanel() {
               { label: 'GitHub Repository', url: 'https://github.com/thomas-barrios/DCS-Max' },
               { label: 'Documentation', url: 'https://github.com/thomas-barrios/DCS-Max/wiki' },
               { label: 'Report Issues', url: 'https://github.com/thomas-barrios/DCS-Max/issues' },
-              { label: 'DCS Forums Thread', url: 'https://forum.dcs.world' }
+              { label: 'DCS Forums Thread', url: 'https://forum.dcs.world/topic/382480-dcs-max-performance-optimization-suite/' }
             ].map((link) => (
               <a
                 key={link.label}

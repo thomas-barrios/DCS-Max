@@ -4,8 +4,8 @@
   "configuration": {
     "dryRun": false,
     "vr": {
-      "enabled": false,
-      "hardware": ""
+      "enabled": true,
+      "hardware": "Pimax"
     },
     "waitTimes": {
       "vr": 20000,
@@ -16,11 +16,11 @@
       "missionRestart": 30000
     },
     "paths": {
-      "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
-      "dcsExe": "C:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
+      "savedGamesPath": "D:\\Users\\Thomas\\Saved Games\\DCS",
+      "dcsExe": "D:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
       "capframex": "C:\\Users\\Thomas\\AppData\\Local\\Microsoft\\WinGet\\Packages\\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\\CapFrameX.exe",
       "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures",
-      "notepadpp": "C:\\Users\\Thomas\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Notepad++.Notepad++_Microsoft.Winget.Source_8wekyb3d8bbwe\\notepad++.exe",
+      "notepadpp": "C:\\Program Files\\Notepad++\\notepad++.exe",
       "autohotkey": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
       "vrClient": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe",
       "pimax": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe"

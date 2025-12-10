@@ -1,0 +1,64 @@
+{
+  "testsToRun": [
+    {
+      "setting": "AA",
+      "enabled": false,
+      "values": [
+        "DLAA",
+        "MSAA"
+      ]
+    },
+    {
+      "setting": "MSAA",
+      "enabled": false,
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "setting": "textures",
+      "enabled": false,
+      "values": [
+        0,
+        2
+      ]
+    },
+    {
+      "setting": "shadows",
+      "enabled": false,
+      "values": [
+        1,
+        3
+      ]
+    },
+    {
+      "setting": "Upscaling",
+      "enabled": false,
+      "values": [
+        "DLSS",
+        "FSR",
+        "OFF"
+      ]
+    }
+  ],
+  "testConfiguration": {
+    "mission": "Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz",
+    "numberOfRuns": 1,
+    "maxRetries": 1,
+    "dryRun": false
+  },
+  "description": "DCS-Max Benchmark Testing Configuration - Test parameters, timing, and performance analysis. Global paths/VR in config-global.json",
+  "timing": {
+    "missionReady": 45000,
+    "missionRestart": 30000,
+    "beforeRecord": 3000,
+    "capFrameXWrite": 5000,
+    "recordLength": 60000,
+    "vr": 20000
+  },
+  "version": "1.0.0"
+}

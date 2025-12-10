@@ -17,7 +17,7 @@ DCS-Max is a comprehensive automation suite designed to maximize DCS World perfo
 <img width="2080" height="1340" alt="image" src="https://github.com/user-attachments/assets/dad60a78-41ea-43b0-b9c5-395e3db01ac5" />
 
 
-DCS-Max includes a modern Electron-based UI for easy management of all features:
+DCS-Max includes a modern C# WebView2-based UI with React frontend for easy management of all features:
 
 - **VISUAL DASHBOARD**- Overview of system info and quick actions
 - **BACKUP/RESTORE** - Create, backups, restore and schedule automatic backups with a single click
@@ -360,7 +360,7 @@ Run the scripts in PowerShell:
 ```powershell
 # Clear Cache
 # Clean NVIDIA shader and DX cache, plus DCS-related caches (run as Administrator)
-.\5.Optimization\5.4.1-clean-caches.bat
+.\5.Optimization\5.4.1-clean-caches.ps1
 
 # Registry Optimization
 .\5.Optimization\5.1.2-registry-optimize.reg
@@ -472,7 +472,7 @@ DCS-Max/
 │   ├── 5.1.2-registry-optimize.reg
 │   ├── 5.2.2-tasks-optimize.ps1
 │   ├── 5.3.2-services-optimize.ps1
-│   ├── 5.4.1-clean-caches.bat
+│   ├── 5.4.1-clean-caches.ps1
 │   └── _README.md
 ├── Backups/ (empty)
 ├── CHANGELOG.md

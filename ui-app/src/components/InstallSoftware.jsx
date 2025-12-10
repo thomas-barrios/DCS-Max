@@ -9,8 +9,8 @@ import {
   Loader,
   FolderOpen,
   RefreshCw,
-  Scan,
-  Save
+  Save,
+  Scan
 } from 'lucide-react';
 
 // Path configuration fields - split into DCS and Software paths
@@ -103,7 +103,8 @@ function InstallSoftware() {
     }
   }, [output, installing]);
 
-  const JSON_CONFIG_PATH = '4-Performance-Testing/testing-configuration.json';
+  const JSON_CONFIG_PATH = 'config-tests.json';
+  const GLOBAL_CONFIG_PATH = 'config-global.json';
 
   const initializeAll = async () => {
     setCheckingStatus(true);
@@ -123,15 +124,16 @@ function InstallSoftware() {
     const newSettings = { ...settings };
     const sources = {};
 
-    // Load paths from JSON config
+    // Load paths from global config and test config
     try {
-      const jsonResult = await window.dcsMax.readJsonConfig(JSON_CONFIG_PATH);
-      if (jsonResult.success && jsonResult.data?.configuration?.paths) {
-        const paths = jsonResult.data.configuration.paths;
-        
+      // Load global config for paths
+      const globalResult = await window.dcsMax.readJsonConfig(GLOBAL_CONFIG_PATH);
+      if (globalResult.success && globalResult.data?.paths) {
+        const paths = globalResult.data.paths;
+
         // Helper to check if a path value is a placeholder (not a real path)
         const isPlaceholder = (value) => !value || value === 'auto' || value === '' || value.toLowerCase() === 'auto';
-        
+
         // Map JSON keys to settings keys (ignore placeholder values)
         if (paths.dcsExe && !isPlaceholder(paths.dcsExe)) {
           newSettings.dcsPath = paths.dcsExe;
@@ -141,9 +143,11 @@ function InstallSoftware() {
           newSettings.savedGamesPath = paths.savedGamesPath;
           sources.savedGamesPath = 'config';
         }
-        if (paths.capframex && !isPlaceholder(paths.capframex)) {
-          newSettings.capframexPath = paths.capframex;
-          sources.capframexPath = 'config';
+        if (paths.capframexFolder && !isPlaceholder(paths.capframexFolder)) {
+          // Note: capframexFolder is used by AutoHotkey for JSON file location, not for launching
+          // UI uses detected paths for CapFrameX launching to avoid conflicts
+          // newSettings.capframexPath = paths.capframexFolder;
+          // sources.capframexPath = 'config';
         }
         if (paths.notepadpp && !isPlaceholder(paths.notepadpp)) {
           newSettings.notepadppPath = paths.notepadpp;
@@ -157,11 +161,26 @@ function InstallSoftware() {
           newSettings.autoHotkeyPath = paths.autohotkey;
           sources.autoHotkeyPath = 'config';
         }
-        
+      }
+
+      // Load test config for mission and VR settings
+      const testResult = await window.dcsMax.readJsonConfig(JSON_CONFIG_PATH);
+      if (testResult.success && testResult.data?.testConfiguration) {
+        const testConfig = testResult.data.testConfiguration;
+
         // Benchmark mission (stored as filename only, relative to benchmark-missions folder)
-        if (jsonResult.data.configuration?.mission && !isPlaceholder(jsonResult.data.configuration.mission)) {
-          newSettings.benchmarkMissionPath = jsonResult.data.configuration.mission;
+        if (testConfig.mission && !isPlaceholder(testConfig.mission)) {
+          newSettings.benchmarkMissionPath = testConfig.mission;
           sources.benchmarkMissionPath = 'config';
+        }
+
+        // Load VR settings
+        if (testConfig.vr) {
+          if (testConfig.vr.enabled) {
+            setSelectedVRHeadset(testConfig.vr.hardware || 'none');
+          } else {
+            setSelectedVRHeadset('none');
+          }
         }
       }
     } catch (err) {
@@ -318,7 +337,8 @@ function InstallSoftware() {
 
   const verifySinglePath = async (key, pathToVerify = null) => {
     const field = pathFields.find(f => f.key === key);
-    const path = pathToVerify || settings[key];
+    let path = pathToVerify || settings[key];
+    
     if (path) {
       setPathStatus(prev => ({ ...prev, [key]: 'checking' }));
       const status = await verifyPath(path, field?.isFolder, field?.isRelative, projectRoot);
@@ -341,11 +361,6 @@ function InstallSoftware() {
       default:
         return <XCircle className="w-4 h-4 text-yellow-500" />;
     }
-  };
-
-  const detectAllPaths = async () => {
-    setCheckingStatus(true);
-    await checkInstalledSoftware({}, {}, projectRoot);
   };
 
   const detectVRHeadset = async () => {
@@ -454,67 +469,85 @@ function InstallSoftware() {
 
   const handleSavePaths = async () => {
     try {
-      // Read current JSON config
-      const jsonResult = await window.dcsMax.readJsonConfig(JSON_CONFIG_PATH);
-      if (!jsonResult.success) {
-        alert('Error reading configuration: ' + (jsonResult.error || 'Unknown error'));
+      // Read current global config for paths
+      const globalResult = await window.dcsMax.readJsonConfig(GLOBAL_CONFIG_PATH);
+      if (!globalResult.success) {
+        alert('Error reading global configuration: ' + (globalResult.error || 'Unknown error'));
         return;
       }
-      
-      const config = jsonResult.data;
-      if (!config.configuration) config.configuration = {};
-      if (!config.configuration.paths) config.configuration.paths = {};
-      
-      // Map settings keys to JSON keys
+
+      const globalConfig = globalResult.data;
+      if (!globalConfig.paths) globalConfig.paths = {};
+
+      // Save paths to global config
       if (settings.dcsPath) {
-        config.configuration.paths.dcsExe = settings.dcsPath;
+        globalConfig.paths.dcsExe = settings.dcsPath;
       }
       if (settings.savedGamesPath) {
-        config.configuration.paths.savedGamesPath = settings.savedGamesPath;
-        // Note: optionsLua is derived from savedGamesPath when needed, not stored separately
+        globalConfig.paths.savedGamesPath = settings.savedGamesPath;
       }
       if (settings.capframexPath) {
-        config.configuration.paths.capframex = settings.capframexPath;
+        // Note: Don't save capframexPath to capframexFolder - capframexFolder is reserved for captures directory
+        // UI uses detected paths for CapFrameX launching, AutoHotkey uses capframexFolder for JSON files
+        // globalConfig.paths.capframexFolder = settings.capframexPath;
       }
       if (settings.autoHotkeyPath) {
-        config.configuration.paths.autohotkey = settings.autoHotkeyPath;
+        globalConfig.paths.autohotkey = settings.autoHotkeyPath;
       }
       if (settings.notepadppPath) {
-        config.configuration.paths.notepadpp = settings.notepadppPath;
+        globalConfig.paths.notepadpp = settings.notepadppPath;
       }
       if (settings.pimaxPath) {
-        config.configuration.paths.pimax = settings.pimaxPath;
-        config.configuration.paths.vrClient = settings.pimaxPath;
+        globalConfig.paths.pimax = settings.pimaxPath;
       }
+
+      // Write updated global config
+      const globalWriteResult = await window.dcsMax.writeJsonConfig(GLOBAL_CONFIG_PATH, globalConfig);
+      if (!globalWriteResult.success) {
+        alert('Error saving paths to global config: ' + (globalWriteResult.error || 'Unknown error'));
+        return;
+      }
+
+      // Read current test config for test-related settings
+      const testResult = await window.dcsMax.readJsonConfig(JSON_CONFIG_PATH);
+      if (!testResult.success) {
+        alert('Error reading test configuration: ' + (testResult.error || 'Unknown error'));
+        return;
+      }
+
+      const testConfig = testResult.data;
+      if (!testConfig.testConfiguration) testConfig.testConfiguration = {};
+
+      // Save test-related settings to test config
       if (settings.benchmarkMissionPath) {
         // Store only the filename - mission is relative to benchmark-missions folder
         const filename = settings.benchmarkMissionPath.split(/[\\\/]/).pop();
-        config.configuration.mission = filename;
+        testConfig.testConfiguration.mission = filename;
       }
-      
+
       // Save VR configuration based on selected headset
-      if (!config.configuration.vr) config.configuration.vr = {};
-      
+      if (!testConfig.testConfiguration.vr) testConfig.testConfiguration.vr = {};
+
       if (selectedVRHeadset === 'none' || !selectedVRHeadset) {
         // No VR selected - disable VR
-        config.configuration.vr.enabled = false;
-        config.configuration.vr.hardware = 'none';
+        testConfig.testConfiguration.vr.enabled = false;
+        testConfig.testConfiguration.vr.hardware = 'none';
       } else {
         // VR headset selected - enable and set hardware
-        config.configuration.vr.enabled = true;
-        config.configuration.vr.hardware = selectedVRHeadset;
+        testConfig.testConfiguration.vr.enabled = true;
+        testConfig.testConfiguration.vr.hardware = selectedVRHeadset;
       }
-      
-      // Write updated config
-      const writeResult = await window.dcsMax.writeJsonConfig(JSON_CONFIG_PATH, config);
-      if (writeResult.success) {
-        alert('Paths saved to configuration file!');
+
+      // Write updated test config
+      const testWriteResult = await window.dcsMax.writeJsonConfig(JSON_CONFIG_PATH, testConfig);
+      if (testWriteResult.success) {
+        alert('Configuration saved successfully!');
       } else {
-        alert('Error saving paths: ' + (writeResult.error || 'Unknown error'));
+        alert('Error saving test config: ' + (testWriteResult.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Save error:', err);
-      alert('Error saving paths: ' + err.message);
+      alert('Error saving configuration: ' + err.message);
     }
   };
 
@@ -754,16 +787,26 @@ function InstallSoftware() {
   };
 
   const installAll = async () => {
+    console.log('installAll called');
+    if (!window?.dcsMax?.executeCommand) {
+      console.log('Bridge not available');
+      alert('DCS-Max host is not available. Please run from the launcher so winget commands can execute.');
+      return;
+    }
+    console.log('Bridge available, checking confirm');
     if (!confirm('Install all required software using winget?\n\nThis will install:\n• CapFrameX\n• AutoHotkey\n• Notepad++')) {
+      console.log('User cancelled');
       return;
     }
     
+    console.log('Starting installation');
     setInstalling('all');
     setOutput('Installing all required software...\nThis may take a few minutes, please wait...\n\n');
 
     try {
       // Install each software sequentially using executeCommand
       for (const software of requiredSoftware) {
+        console.log(`Installing ${software.name}`);
         if (installStatus[software.id] === 'installed') {
           setOutput(prev => prev + `✓ ${software.name} already installed, skipping...\n`);
           continue;
@@ -772,7 +815,9 @@ function InstallSoftware() {
         setOutput(prev => prev + `📦 Installing ${software.name}...\n`);
         
         const command = `winget install --id=${software.wingetId} --exact --scope=user --accept-package-agreements --accept-source-agreements`;
+        console.log(`Executing command: ${command}`);
         const result = await window.dcsMax.executeCommand(command);
+        console.log(`Command result:`, result);
         
         if (result.success || result.exitCode === 0) {
           setOutput(prev => prev + `✓ ${software.name} installed successfully!\n\n`);
@@ -894,15 +939,6 @@ function InstallSoftware() {
                     <Download className="w-4 h-4" />
                   )}
                   <span>{allInstalled ? 'All Installed' : 'Install All'}</span>
-                </button>
-                <button
-                  onClick={detectAllPaths}
-                  disabled={checkingStatus}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 rounded transition-colors text-sm"
-                  title="Auto-detect all application paths"
-                >
-                  <Scan className={`w-4 h-4 ${checkingStatus ? 'animate-pulse' : ''}`} />
-                  <span>Detect All</span>
                 </button>
                 <button
                   onClick={() => verifyAllPaths(projectRoot)}

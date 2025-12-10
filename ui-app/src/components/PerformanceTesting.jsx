@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Search,
   ChevronDown,
@@ -65,6 +66,7 @@ function CalibrationWizard({
   startTime, setStartTime,
   vrEnabled,
   config,
+  globalConfig,
   onClose, onApply 
 }) {
   const [intervalId, setIntervalId] = useState(null);
@@ -111,18 +113,18 @@ function CalibrationWizard({
 
   // Get paths from config
   const getPath = (key) => {
-    return config?.configuration?.paths?.[key] || '';
+    return globalConfig?.paths?.[key] || '';
   };
 
   const getVRHardware = () => {
-    const hardware = config?.configuration?.vr?.hardware;
+    const hardware = config?.testConfiguration?.vr?.hardware;
     // Return 'none' if hardware is undefined, null, or 'none'
     return hardware && hardware !== 'none' ? hardware : 'none';
   };
 
   const getMissionPath = () => {
     // Build full mission path from mission name
-    const missionName = config?.configuration?.mission || '';
+    const missionName = config?.testConfiguration?.mission || '';
     if (!missionName) return '';
     // Missions are in 4-Performance-Testing/benchmark-missions folder
     return `4-Performance-Testing/benchmark-missions/${missionName}`;
@@ -142,7 +144,7 @@ function CalibrationWizard({
       }
       
       // Get VR client path from config
-      const vrClientPath = configInfo?.paths?.vrClient || '';
+      const vrClientPath = globalConfig?.vrHeadsets?.[hardware.toLowerCase()]?.path || '';
       
       const result = await window.dcsMax.launchVRSoftware(hardware, vrClientPath);
       
@@ -212,6 +214,18 @@ function CalibrationWizard({
     };
   }, [intervalId]);
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const steps = [
     { id: 'intro', title: 'Introduction' },
     { id: 'vr', title: 'VR Init', skip: !vrEnabled },
@@ -223,8 +237,8 @@ function CalibrationWizard({
   const activeSteps = steps.filter(s => !s.skip);
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white flex items-center space-x-2">
@@ -242,22 +256,22 @@ function CalibrationWizard({
             {activeSteps.map((s, i) => (
               <React.Fragment key={s.id}>
                 <div className={`flex items-center space-x-2 ${
-                  step === (vrEnabled ? steps.indexOf(s) : i === 0 ? 0 : steps.indexOf(s)) 
+                  i === step 
                     ? 'text-blue-400' 
-                    : step > steps.indexOf(s) ? 'text-green-400' : 'text-slate-500'
+                    : i < step ? 'text-green-400' : 'text-slate-500'
                 }`}>
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                    step > steps.indexOf(s) 
+                    i < step 
                       ? 'bg-green-500/20' 
-                      : step === steps.indexOf(s) ? 'bg-blue-500/20' : 'bg-slate-700'
+                      : i === step ? 'bg-blue-500/20' : 'bg-slate-700'
                   }`}>
-                    {step > steps.indexOf(s) ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                    {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
                   </span>
                   <span className="text-xs hidden sm:inline">{s.title}</span>
                 </div>
                 {i < activeSteps.length - 1 && (
                   <div className={`flex-1 h-0.5 mx-2 ${
-                    step > steps.indexOf(s) ? 'bg-green-500/50' : 'bg-slate-700'
+                    i < step ? 'bg-green-500/50' : 'bg-slate-700'
                   }`} />
                 )}
               </React.Fragment>
@@ -491,6 +505,7 @@ function CalibrationWizard({
 function PerformanceTesting() {
   const [activeTab, setActiveTab] = useState('run');
   const [config, setConfig] = useState(null);
+  const [globalConfig, setGlobalConfig] = useState(null);
   const [schema, setSchema] = useState(null);
   const [configError, setConfigError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -570,13 +585,18 @@ function PerformanceTesting() {
       setConfigError(null);
       setConfigLoaded(false);
       setHasChanges(false);
-      const result = await window.dcsMax.readJsonConfig('4-Performance-Testing/testing-configuration.json');
+      const result = await window.dcsMax.readJsonConfig('config-tests.json');
       if (result.success) {
         setConfig(result.data);
         setConfigLoaded(true);
       } else {
         setConfigError(result.error || 'Failed to load config');
         setConfigLoaded(true);  // Set true so error UI shows
+      }
+      
+      const globalResult = await window.dcsMax.readJsonConfig('config-global.json');
+      if (globalResult.success) {
+        setGlobalConfig(globalResult.data);
       }
       
       const schemaResult = await window.dcsMax.readJsonConfig('lib/dcs-settings-schema.json');
@@ -800,13 +820,13 @@ function PerformanceTesting() {
     // Apply calibrated timings to config with 5 second buffer for safety
     const buffer = 5000;
     if (calibrationTiming.vr !== null) {
-      updateConfigValue('configuration.waitTimes.vr', (calibrationTiming.vr * 1000) + buffer);
+      updateConfigValue('timing.vr', (calibrationTiming.vr * 1000) + buffer);
     }
     if (calibrationTiming.coldStart !== null) {
-      updateConfigValue('configuration.waitTimes.missionReady', (calibrationTiming.coldStart * 1000) + buffer);
+      updateConfigValue('timing.missionReady', (calibrationTiming.coldStart * 1000) + buffer);
     }
     if (calibrationTiming.missionRestart !== null) {
-      updateConfigValue('configuration.waitTimes.missionRestart', (calibrationTiming.missionRestart * 1000) + buffer);
+      updateConfigValue('timing.missionRestart', (calibrationTiming.missionRestart * 1000) + buffer);
     }
     closeCalibration();
   };
@@ -826,7 +846,7 @@ function PerformanceTesting() {
     setSaving(true);
     try {
       const result = await window.dcsMax.writeJsonConfig(
-        '4-Performance-Testing/testing-configuration.json',
+        'config-tests.json',
         config
       );
       if (result.success) {
@@ -976,11 +996,11 @@ function PerformanceTesting() {
 
   // Config values for display
   const configInfo = config?.configuration || {};
-  const enableVR = configInfo.vr?.enabled || false;
-  const configMissionPath = configInfo.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
+  const enableVR = config?.testConfiguration?.vr?.enabled || false;
+  const configMissionPath = config?.testConfiguration?.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
   const effectiveMissionPath = selectedMission || configMissionPath;
-  const recordLength = configInfo.waitTimes?.recordLength ? (configInfo.waitTimes.recordLength / 1000) : 60;
-  const numberOfRuns = configInfo.numberOfRuns || 1;
+  const recordLength = config?.timing?.recordLength ? (config?.timing?.recordLength / 1000) : 60;
+  const numberOfRuns = config?.testConfiguration?.numberOfRuns || 1;
 
   if (!config || !schema) {
     return (
@@ -1108,7 +1128,7 @@ function PerformanceTesting() {
       </div>
 
       {/* Calibration Wizard Modal */}
-      {calibrationOpen && (
+      {calibrationOpen && ReactDOM.createPortal(
         <CalibrationWizard
           step={calibrationStep}
           setStep={setCalibrationStep}
@@ -1118,11 +1138,13 @@ function PerformanceTesting() {
           setTimer={setCalibrationTimer}
           startTime={calibrationStartTime}
           setStartTime={setCalibrationStartTime}
-          vrEnabled={config?.configuration?.vr?.enabled}
+          vrEnabled={config?.testConfiguration?.vr?.enabled}
           config={config}
+          globalConfig={globalConfig}
           onClose={closeCalibration}
           onApply={applyCalibration}
-        />
+        />,
+        document.body
       )}
     </div>
   );
@@ -1653,10 +1675,10 @@ function RunTestsTab({
                   {/* 2D / VR Toggle */}
                   <div className="flex bg-slate-700 rounded-lg p-1">
                     <button
-                      onClick={() => updateConfigValue('configuration.vr.enabled', false)}
+                      onClick={() => updateConfigValue('testConfiguration.vr.enabled', false)}
                       disabled={running}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        !configInfo.vr?.enabled
+                        !config?.testConfiguration?.vr?.enabled
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-400 hover:text-white'
                       } disabled:opacity-50`}
@@ -1667,10 +1689,10 @@ function RunTestsTab({
                       </div>
                     </button>
                     <button
-                      onClick={() => updateConfigValue('configuration.vr.enabled', true)}
+                      onClick={() => updateConfigValue('testConfiguration.vr.enabled', true)}
                       disabled={running}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        configInfo.vr?.enabled
+                        config?.testConfiguration?.vr?.enabled
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-400 hover:text-white'
                       } disabled:opacity-50`}
@@ -1683,9 +1705,9 @@ function RunTestsTab({
                   </div>
                   
                   {/* VR Hardware (only shown when VR is enabled) */}
-                  {configInfo.vr?.enabled && (
+                  {config?.testConfiguration?.vr?.enabled && (
                     <span className="px-2 py-1.5 text-cyan-400 text-sm font-medium">
-                      {configInfo.vr?.hardware || 'Not configured'}
+                      {config?.testConfiguration?.vr?.hardware || 'Not configured'}
                     </span>
                   )}
                 </div>
@@ -1729,7 +1751,7 @@ function RunTestsTab({
               <p className="text-xs text-slate-500 mb-2">Configure wait times for each phase of the benchmark cycle:</p>
               
               {/* Phase 1: VR startup (only if VR enabled) */}
-              {configInfo.vr?.enabled && (
+              {config?.testConfiguration?.vr?.enabled && (
                 <div className="flex items-center space-x-3">
                   <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">1</span>
                   <div className="flex-1">
@@ -1739,8 +1761,8 @@ function RunTestsTab({
                   <div className="w-24">
                     <input
                       type="number"
-                      value={(configInfo.waitTimes?.vr || 15000) / 1000}
-                      onChange={(e) => updateConfigValue('configuration.waitTimes.vr', parseInt(e.target.value) * 1000)}
+                      value={(config?.timing?.vr || 15000) / 1000}
+                      onChange={(e) => updateConfigValue('timing.vr', parseInt(e.target.value) * 1000)}
                       disabled={running}
                       className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center focus:outline-none focus:border-blue-500 disabled:opacity-50"
                     />
@@ -1751,7 +1773,7 @@ function RunTestsTab({
               
               {/* Phase 2: Mission load */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{configInfo.vr?.enabled ? '2' : '1'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '2' : '1'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Mission Load</label>
                   <p className="text-xs text-slate-500">Wait for DCS mission to fully load</p>
@@ -1759,8 +1781,8 @@ function RunTestsTab({
                 <div className="w-24">
                   <input
                     type="number"
-                    value={(configInfo.waitTimes?.missionReady || 75000) / 1000}
-                    onChange={(e) => updateConfigValue('configuration.waitTimes.missionReady', parseInt(e.target.value) * 1000)}
+                    value={(config?.timing?.missionReady || 75000) / 1000}
+                    onChange={(e) => updateConfigValue('timing.missionReady', parseInt(e.target.value) * 1000)}
                     disabled={running}
                     className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center focus:outline-none focus:border-blue-500 disabled:opacity-50"
                   />
@@ -1770,7 +1792,7 @@ function RunTestsTab({
               
               {/* Phase 3: Before record */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{configInfo.vr?.enabled ? '3' : '2'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '3' : '2'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Pre-Record Delay</label>
                   <p className="text-xs text-slate-500">Stabilize before recording starts</p>
@@ -1778,8 +1800,8 @@ function RunTestsTab({
                 <div className="w-24">
                   <input
                     type="number"
-                    value={(configInfo.waitTimes?.beforeRecord || 3000) / 1000}
-                    onChange={(e) => updateConfigValue('configuration.waitTimes.beforeRecord', parseInt(e.target.value) * 1000)}
+                    value={(config?.timing?.beforeRecord || 3000) / 1000}
+                    onChange={(e) => updateConfigValue('timing.beforeRecord', parseInt(e.target.value) * 1000)}
                     disabled={running}
                     className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center focus:outline-none focus:border-blue-500 disabled:opacity-50"
                   />
@@ -1789,7 +1811,7 @@ function RunTestsTab({
               
               {/* Phase 4: Record length (highlighted as main setting) */}
               <div className="flex items-center space-x-3 bg-blue-500/10 -mx-4 px-4 py-2 border-l-2 border-blue-500">
-                <span className="w-6 h-6 rounded-full bg-blue-600 text-xs flex items-center justify-center text-white">{configInfo.vr?.enabled ? '4' : '3'}</span>
+                <span className="w-6 h-6 rounded-full bg-blue-600 text-xs flex items-center justify-center text-white">{config?.testConfiguration?.vr?.enabled ? '4' : '3'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-white font-medium">Recording Duration</label>
                   <p className="text-xs text-slate-400">CapFrameX capture length per test</p>
@@ -1797,8 +1819,8 @@ function RunTestsTab({
                 <div className="w-24">
                   <input
                     type="number"
-                    value={(configInfo.waitTimes?.recordLength || 60000) / 1000}
-                    onChange={(e) => updateConfigValue('configuration.waitTimes.recordLength', parseInt(e.target.value) * 1000)}
+                    value={(config?.timing?.recordLength || 60000) / 1000}
+                    onChange={(e) => updateConfigValue('timing.recordLength', parseInt(e.target.value) * 1000)}
                     disabled={running}
                     className="w-full px-2 py-1 bg-slate-700 border border-blue-500 rounded text-white text-sm text-center focus:outline-none focus:border-blue-400 disabled:opacity-50"
                   />
@@ -1808,7 +1830,7 @@ function RunTestsTab({
               
               {/* Phase 5: CapFrameX write */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{configInfo.vr?.enabled ? '5' : '4'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '5' : '4'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Save Results</label>
                   <p className="text-xs text-slate-500">Wait for CapFrameX to write data</p>
@@ -1816,8 +1838,8 @@ function RunTestsTab({
                 <div className="w-24">
                   <input
                     type="number"
-                    value={(configInfo.waitTimes?.capFrameXWrite || 5000) / 1000}
-                    onChange={(e) => updateConfigValue('configuration.waitTimes.capFrameXWrite', parseInt(e.target.value) * 1000)}
+                    value={(config?.timing?.capFrameXWrite || 5000) / 1000}
+                    onChange={(e) => updateConfigValue('timing.capFrameXWrite', parseInt(e.target.value) * 1000)}
                     disabled={running}
                     className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center focus:outline-none focus:border-blue-500 disabled:opacity-50"
                   />
@@ -1827,7 +1849,7 @@ function RunTestsTab({
               
               {/* Phase 6: Mission restart */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{configInfo.vr?.enabled ? '6' : '5'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '6' : '5'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Mission Restart</label>
                   <p className="text-xs text-slate-500">Wait after mission restart command</p>
@@ -1835,8 +1857,8 @@ function RunTestsTab({
                 <div className="w-24">
                   <input
                     type="number"
-                    value={(configInfo.waitTimes?.missionRestart || 15000) / 1000}
-                    onChange={(e) => updateConfigValue('configuration.waitTimes.missionRestart', parseInt(e.target.value) * 1000)}
+                    value={(config?.timing?.missionRestart || 15000) / 1000}
+                    onChange={(e) => updateConfigValue('timing.missionRestart', parseInt(e.target.value) * 1000)}
                     disabled={running}
                     className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center focus:outline-none focus:border-blue-500 disabled:opacity-50"
                   />
@@ -1982,8 +2004,8 @@ function RunTestsTab({
             <div className={`text-lg font-semibold ${enableVR ? 'text-purple-400' : 'text-blue-400'}`}>
               {enableVR ? 'VR' : '2D'}
             </div>
-            {enableVR && configInfo.vr?.hardware && (
-              <div className="text-xs text-slate-400 mt-1">{configInfo.vr.hardware}</div>
+            {enableVR && config?.testConfiguration?.vr?.hardware && (
+              <div className="text-xs text-slate-400 mt-1">{config?.testConfiguration?.vr?.hardware}</div>
             )}
           </div>
           

@@ -14,33 +14,49 @@ $Timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $BackupFolder = "$BackupsDir\$Timestamp-dcs-settings-backup"
 $LogFile = "$BackupsDir\_BackupLog.txt"
 
-# Import VR Headset Configuration module
+# Import PathResolver and VR modules
+$PathResolverPath = Join-Path $RootDir "lib\PathResolver.ps1"
 $VRConfigPath = Join-Path $RootDir "lib\VRHeadsetConfig.ps1"
+
+if (Test-Path $PathResolverPath) {
+    . $PathResolverPath
+} else {
+    Write-Warning "PathResolver module not found. Using fallback path discovery."
+}
+
 if (Test-Path $VRConfigPath) {
     . $VRConfigPath
 } else {
     Write-Warning "VRHeadsetConfig module not found. Some VR settings may not be backed up."
 }
 
-# Find Saved Games path (may be on different drive than USERPROFILE)
-# Check multiple possible locations for Saved Games, starting with common alternate drives
-$possiblePaths = @(
-    "D:\Users\$UserName\Saved Games",
-    "E:\Users\$UserName\Saved Games",
-    "$env:USERPROFILE\Saved Games",
-    [Environment]::GetFolderPath('UserProfile') + "\Saved Games"
-)
-$SavedGamesPath = $null
-foreach ($path in $possiblePaths) {
-    if (Test-Path "$path\DCS") {
-        $SavedGamesPath = $path
-        break
+# Discover DCS Saved Games location from config-global.json
+# Discover DCS Saved Games location from config-global.json
+$globalConfigPath = Join-Path $PSScriptRoot "..\config-global.json"
+$savedGamesPath = if (Test-Path $globalConfigPath) {
+    try {
+        $globalConfig = Get-Content -Path $globalConfigPath -Raw | ConvertFrom-Json
+        if ($globalConfig.paths -and $globalConfig.paths.savedGamesPath) {
+            $path = $globalConfig.paths.savedGamesPath
+            [Environment]::ExpandEnvironmentVariables($path)
+        } else {
+            "$env:USERPROFILE\Saved Games"
+        }
+    } catch {
+        "$env:USERPROFILE\Saved Games"
     }
-}
-if (-not $SavedGamesPath) {
-    $SavedGamesPath = "$env:USERPROFILE\Saved Games"
+} else {
+    "$env:USERPROFILE\Saved Games"
 }
 
+$DCSsavedGamesPath = if ($savedGamesPath.TrimEnd('\') -match '\\DCS$') {
+    $savedGamesPath.TrimEnd('\')
+} else {
+    Join-Path $savedGamesPath 'DCS'
+}
+
+# Normalize to ensure path points to the DCS folder
+# (Removed: rely on user-provided savedGamesPath)
 # Counters
 $script:backedUp = 0
 $script:missing = 0
@@ -63,12 +79,12 @@ $BackupGroups = @(
     @{
         Label = "DCS World"
         Files = @(
-            "$SavedGamesPath\DCS\Config\autoexec.cfg",
-            "$SavedGamesPath\DCS\Config\options.lua",
-            "$SavedGamesPath\DCS\Config\serverSettings.lua"
+            "$DCSsavedGamesPath\Config\autoexec.cfg",
+            "$DCSsavedGamesPath\Config\options.lua",
+            "$DCSsavedGamesPath\Config\serverSettings.lua"
         )
         Folders = @(
-            "$SavedGamesPath\DCS\Config\Input"
+            "$DCSsavedGamesPath\Config\Input"
         )
     }
 ) + $VRBackupGroups + @(
@@ -119,8 +135,6 @@ try {
     Write-Host ""
     Write-Host "[PATH]   Saving to: $BackupFolder" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "[DCS]    DCS location: $SavedGamesPath\DCS" -ForegroundColor Gray
-    Write-Host ""
     Write-Host "------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "[BACKUP] Backing up DCS settings..." -ForegroundColor Yellow
@@ -156,11 +170,13 @@ try {
                 $script:backedUp++
                 $fileName = Split-Path $File -Leaf
                 Write-Host "[OK]     $fileName" -ForegroundColor Green
+                Write-Host "         Path: $File" -ForegroundColor DarkGray
                 Write-Log "$File -> $DestPath"
             } else {
                 $script:missing++
                 $fileName = Split-Path $File -Leaf
                 Write-Host "[SKIP]   $fileName (not found)" -ForegroundColor DarkGray
+                Write-Host "         Path: $File" -ForegroundColor DarkGray
                 Write-Log "MISSING: $File" "WARN"
             }
         }
@@ -174,11 +190,13 @@ try {
                 $script:backedUp += $fileCount
                 $folderName = Split-Path $Folder -Leaf
                 Write-Host "[OK]     $folderName/ ($fileCount files)" -ForegroundColor Green
+                Write-Host "         Path: $Folder" -ForegroundColor DarkGray
                 Write-Log "$Folder -> $DestPath ($fileCount files)"
             } else {
                 $script:missing++
                 $folderName = Split-Path $Folder -Leaf
                 Write-Host "[SKIP]   $folderName/ (not found)" -ForegroundColor DarkGray
+                Write-Host "         Path: $Folder" -ForegroundColor DarkGray
                 Write-Log "MISSING FOLDER: $Folder" "WARN"
             }
         }

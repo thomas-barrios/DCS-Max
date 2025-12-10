@@ -31,8 +31,9 @@ for arg in A_Args {
 ; JSON CONFIG FILE PATHS
 ; ==============================
 
-configFile := A_ScriptDir "\testing-configuration.json"
-devConfigFile := A_ScriptDir "\testing-configuration.dev.json"
+configFile := A_ScriptDir "\..\config-tests.json"
+globalConfigFile := A_ScriptDir "\..\config-global.json"
+devConfigFile := A_ScriptDir "\..\config-tests.json"
 schemaFile := A_ScriptDir "\..\lib\dcs-settings-schema.json"
 
 ; ==============================
@@ -40,15 +41,33 @@ schemaFile := A_ScriptDir "\..\lib\dcs-settings-schema.json"
 ; ==============================
 
 LoadJsonConfig() {
-    global configFile, devConfigFile, schemaFile
+    global configFile, globalConfigFile, devConfigFile, schemaFile
     
-    ; Load main config
+    ; Load main test config
     if (!FileExist(configFile)) {
         throw Error("Config file not found: " configFile)
     }
     
     configText := FileRead(configFile, "UTF-8")
     config := Jxon_Load(&configText)
+    
+    ; Load global config and merge paths
+    if (FileExist(globalConfigFile)) {
+        globalText := FileRead(globalConfigFile, "UTF-8")
+        globalConfig := Jxon_Load(&globalText)
+        if (globalConfig.Has("paths")) {
+            if (!config.Has("configuration")) {
+                config["configuration"] := Map()
+            }
+            if (!config["configuration"].Has("paths")) {
+                config["configuration"]["paths"] := Map()
+            }
+            ; Merge global paths into config
+            for key, value in globalConfig["paths"] {
+                config["configuration"]["paths"][key] := value
+            }
+        }
+    }
     
     ; Load dev overrides if exists and merge
     if (FileExist(devConfigFile)) {
@@ -98,20 +117,20 @@ try {
 DryRun := GetNestedValue(config, "configuration.dryRun", false)
 
 ; VR Configuration
-EnableVR := GetNestedValue(config, "configuration.vr.enabled", false)
-VRhardware := GetNestedValue(config, "configuration.vr.hardware", "Pimax")
+EnableVR := GetNestedValue(config, "testConfiguration.vr.enabled", false)
+VRhardware := GetNestedValue(config, "testConfiguration.vr.hardware", "Pimax")
 
 ; Waiting Times (in milliseconds)
-WaitVR := GetNestedValue(config, "configuration.waitTimes.vr", 15000)
-WaitMissionReady := GetNestedValue(config, "configuration.waitTimes.missionReady", 75000)
-WaitBeforeRecord := GetNestedValue(config, "configuration.waitTimes.beforeRecord", 3000)
-WaitRecordLength := GetNestedValue(config, "configuration.waitTimes.recordLength", 60000)
-WaitCapFrameXWrite := GetNestedValue(config, "configuration.waitTimes.capFrameXWrite", 5000)
-WaitMissionRestart := GetNestedValue(config, "configuration.waitTimes.missionRestart", 15000)
+WaitVR := GetNestedValue(config, "timing.vr", 15000)
+WaitMissionReady := GetNestedValue(config, "timing.missionReady", 75000)
+WaitBeforeRecord := GetNestedValue(config, "timing.beforeRecord", 3000)
+WaitRecordLength := GetNestedValue(config, "timing.recordLength", 60000)
+WaitCapFrameXWrite := GetNestedValue(config, "timing.capFrameXWrite", 5000)
+WaitMissionRestart := GetNestedValue(config, "timing.missionRestart", 15000)
 
 ; Test configuration
-NumberOfRuns := GetNestedValue(config, "configuration.numberOfRuns", 1)
-MaxRetries := GetNestedValue(config, "configuration.maxRetries", 1)
+NumberOfRuns := GetNestedValue(config, "testConfiguration.numberOfRuns", 1)
+MaxRetries := GetNestedValue(config, "testConfiguration.maxRetries", 1)
 
 ; Time tracking variables (internal, not configurable)
 TotalTestCount := 0
@@ -120,13 +139,14 @@ StartTime := ""
 BaseTimePerTest := 0
 
 ; File paths - expand environment variables
-savedGamesPath := ExpandEnvVars(GetNestedValue(config, "configuration.paths.savedGamesPath", EnvGet("USERPROFILE") "\Saved Games\DCS"))
+savedGamesPath := ExpandEnvVars(GetNestedValue(config, "configuration.paths.savedGamesPath", EnvGet("USERPROFILE") "\Saved Games"))
 optionsLua := savedGamesPath "\Config\options.lua"
 dcsExe := ExpandEnvVars(GetNestedValue(config, "configuration.paths.dcsExe", "C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe"))
-capframex := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframex", "C:\Program Files (x86)\CapFrameX\CapFrameX.exe"))
+capframexExe := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframex", "C:\Users\" EnvGet("USERNAME") "\AppData\Local\Microsoft\WinGet\Packages\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\CapFrameX.exe"))
 capframexFolder := ExpandEnvVars(GetNestedValue(config, "configuration.paths.capframexFolder", A_MyDocuments "\CapFrameX\Captures"))
 pimax := ExpandEnvVars(GetNestedValue(config, "configuration.paths.pimax", "C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe"))
 notepadpp := ExpandEnvVars(GetNestedValue(config, "configuration.paths.notepadpp", "C:\Program Files\Notepad++\notepad++.exe"))
+autohotkey := ExpandEnvVars(GetNestedValue(config, "configuration.paths.autohotkey", "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"))
 
 logFile := A_ScriptDir "\4.1.2-dcs-testing-automation.log"
 checkpointFile := A_ScriptDir "\4.1.4-checkpoint.txt"
@@ -139,7 +159,7 @@ if (MissionOverride != "") {
     else
         mission := MissionOverride
 } else {
-    missionFromConfig := GetNestedValue(config, "configuration.mission", "")
+    missionFromConfig := GetNestedValue(config, "testConfiguration.mission", "")
     if (missionFromConfig != "") {
         ; If path doesn't start with drive letter, treat as relative to benchmark-missions folder
         if (!RegExMatch(missionFromConfig, "^[A-Za-z]:"))
@@ -216,7 +236,7 @@ testsToRun := GetNestedValue(config, "testsToRun", [])
 
 if (!(testsToRun is Array) || testsToRun.Length = 0) {
     LogWithTimestamp("ERROR: No tests configured in testsToRun array!")
-    MsgBox "No tests configured in testsToRun array!`n`nEdit testing-configuration.json to add tests.", "Config Error", 16
+    MsgBox "No tests configured in testsToRun array!`n`nEdit ../config-tests.json to add tests.", "Config Error", 16
     ExitApp
 }
 
@@ -441,7 +461,7 @@ MainTestLoop() {
         ; Reopen CapFrameX
         try {
             if (DryRun) { 
-                Run capframex 
+                Run capframexExe 
                 LogWithTimestamp("DRY RUN: CapFrameX would restart successfully")
             } 
             LogWithTimestamp("CapFrameX restarted successfully")
@@ -732,14 +752,14 @@ StartApplications() {
     }
     
     ; Start CapFrameX
-    if !FileExist(capframex) {
-        LogWithTimestamp("ERROR: CapFrameX not found: " capframex)
-        MsgBox "CapFrameX not found: " capframex, "Error", 16
+    if !FileExist(capframexExe) {
+        LogWithTimestamp("ERROR: CapFrameX not found: " capframexExe)
+        MsgBox "CapFrameX not found: " capframexExe, "Error", 16
         ExitApp
     }
     
     LogWithTimestamp("Starting CapFrameX...")
-    Run capframex
+    Run capframexExe
     Sleep 1000
     LogWithTimestamp("CapFrameX started successfully")
     

@@ -33,7 +33,7 @@ function Benchmarking() {
     try {
       setConfigError(null);
       // Load the new JSON config
-      const result = await window.dcsMax.readJsonConfig('4-Performance-Testing/testing-configuration.json');
+      const result = await window.dcsMax.readJsonConfig('config-tests.json');
       if (result.success) {
         setConfig(result.data);
       } else {
@@ -152,7 +152,7 @@ function Benchmarking() {
   const handleSaveConfig = async (newConfig) => {
     try {
       const result = await window.dcsMax.writeJsonConfig(
-        '4-Performance-Testing/testing-configuration.json',
+        'config-tests.json',
         newConfig
       );
       if (result.success) {
@@ -176,13 +176,13 @@ function Benchmarking() {
 
   // Get config values for display (new JSON structure)
   const configInfo = config?.configuration || {};
-  const enableVR = configInfo.vr?.enabled || false;
-  const configMissionPath = configInfo.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
+  const enableVR = config?.testConfiguration?.vr?.enabled || false;
+  const configMissionPath = config?.testConfiguration?.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
   // Use selected mission if set, otherwise use config mission
   const effectiveMissionPath = selectedMission || configMissionPath;
   const mission = projectRoot ? `${projectRoot}\\4-Performance-Testing\\benchmark-missions\\${effectiveMissionPath}` : `benchmark-missions\\${effectiveMissionPath}`;
-  const recordLength = configInfo.waitTimes?.recordLength ? (configInfo.waitTimes.recordLength / 1000) : 60;
-  const numberOfRuns = configInfo.numberOfRuns || 1;
+  const recordLength = config?.timing?.recordLength ? (config?.timing?.recordLength / 1000) : 60;
+  const numberOfRuns = config?.testConfiguration?.numberOfRuns || 1;
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -242,7 +242,7 @@ function Benchmarking() {
 
             <button
               onClick={async () => {
-                const result = await window.dcsMax.openFile('4-Performance-Testing/testing-configuration.json');
+                const result = await window.dcsMax.openFile('config-tests.json');
                 if (!result.success) {
                   alert('Failed to open config file: ' + result.error);
                 }

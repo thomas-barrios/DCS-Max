@@ -123,7 +123,7 @@ notepad .\4-Performance-Testing\4.1.1-dcs-testing-configuration.ini
 
 ```powershell
 # Clean Caches first
-.\5-Optimization\5.4.1-clean-caches.bat
+.\5-Optimization\5.4.1-clean-caches.ps1
 
 # Registry Optimization (double-click to apply)
 .\5-Optimization\5.1.2-registry-optimize.reg

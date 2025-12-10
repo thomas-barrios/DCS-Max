@@ -164,6 +164,11 @@ Write-Host "Closed DCS-Max processes" -ForegroundColor Green
 # Update all version references
 Update-VersionInFiles -NewVersion $targetVersion
 
+# Restore config files to defaults for clean release
+Write-Host "Restoring config files to defaults..." -ForegroundColor Yellow
+& ".\dev-restore-defaults.ps1"
+Write-Host "Config files restored to defaults" -ForegroundColor Green
+
 # Create release folder OUTSIDE the project (sibling folder)
 $releaseDir = Join-Path (Split-Path $scriptDir -Parent) "DCS-Max-Releases"
 $releaseName = "DCS-Max-v$targetVersion"
@@ -196,7 +201,13 @@ foreach ($doc in $docs) {
     if (Test-Path $doc) { Copy-Item $doc $releaseFolder }
 }
 
-# 3. Script folders (0-5)
+# 3. Config files
+$configFiles = @("config-global.json", "config-optimizations.json", "config-tests.json", "config_schema_reference.md")
+foreach ($config in $configFiles) {
+    if (Test-Path $config) { Copy-Item $config $releaseFolder }
+}
+
+# 4. Script folders (0-5)
 $scriptFolders = @(
     "0-Install-Required-Software",
     "1-Backup-Restore",
@@ -213,7 +224,7 @@ foreach ($folder in $scriptFolders) {
     }
 }
 
-# 4. UI App (only compiled files)
+# 5. UI App (only compiled files)
 $uiAppDest = Join-Path $releaseFolder "ui-app"
 New-Item -ItemType Directory -Path $uiAppDest -Force | Out-Null
 
@@ -260,7 +271,7 @@ if (Test-Path $distPath) {
     Write-Host "WARNING: dist folder not found - web app may not work!" -ForegroundColor Red
 }
 
-# 5. Create empty Backups folder with readme and empty log
+# 6. Create empty Backups folder with readme and empty log
 $backupsDir = Join-Path $releaseFolder "Backups"
 New-Item -ItemType Directory -Path $backupsDir -Force | Out-Null
 Set-Content -Path (Join-Path $backupsDir "_README.txt") -Value "This folder stores your backup files created by DCS-Max."
@@ -274,7 +285,7 @@ Set-Content -Path (Join-Path $backupsDir "_BackupLog.txt") -Value "# DCS-Max Bac
 Get-ChildItem -Path $releaseFolder -Recurse -Directory -Filter ".git" -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 # Remove dev/build scripts from root (should not be copied, but ensure they're not there)
-$devScripts = @("create-release.ps1", "build-and-run.ps1")
+$devScripts = @("create-release.ps1", "build-and-run.ps1", "dev-restore-defaults.ps1")
 foreach ($script in $devScripts) {
     $scriptPath = Join-Path $releaseFolder $script
     if (Test-Path $scriptPath) { Remove-Item -Force $scriptPath }

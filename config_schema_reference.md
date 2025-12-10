@@ -103,13 +103,13 @@ Paths support these variables:
 
 Example:
 ```json
-"savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS"
+"savedGamesPath": "%USERPROFILE%\\Saved Games"
 ```
 
 #### Required Paths (DCS & Tools)
 ```json
 "paths": {
-  "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
+  "savedGamesPath": "%USERPROFILE%\\Saved Games",
   "dcsExe": "C:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
   "capframex": "C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe",
   "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures",
@@ -117,7 +117,7 @@ Example:
 }
 ```
 
-- `"savedGamesPath"`: DCS configuration and data directory
+- `"savedGamesPath"`: Windows Saved Games directory (DCS data is in subfolder)
 - `"dcsExe"`: DCS World executable
 - `"capframex"`: CapFrameX benchmark tool
 - `"capframexFolder"`: CapFrameX output directory

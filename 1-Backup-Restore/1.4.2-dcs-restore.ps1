@@ -19,6 +19,12 @@ $RootDir = Split-Path -Parent $ScriptDir
 $BackupsDir = Join-Path $RootDir "Backups"
 $Timestamp = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 
+# Import PathResolver
+$PathResolverPath = Join-Path $RootDir "lib\PathResolver.ps1"
+if (Test-Path $PathResolverPath) {
+    . $PathResolverPath
+}
+
 # Resolve backup folder path
 if ($BackupFolder) {
     # Try various path resolutions
@@ -57,25 +63,30 @@ if ($BackupFolder) {
 }
 
 # === CONFIGURATION ===
-$UserName = $env:USERNAME
 $RestoreLog = "$env:USERPROFILE\Documents\DCS-Max\Backups\_RestoreLog.txt"
 
-# Find Saved Games path (may be on different drive than USERPROFILE)
-$possiblePaths = @(
-    "D:\Users\$UserName\Saved Games",
-    "E:\Users\$UserName\Saved Games",
-    "$env:USERPROFILE\Saved Games",
-    [Environment]::GetFolderPath('UserProfile') + "\Saved Games"
-)
-$SavedGamesPath = $null
-foreach ($path in $possiblePaths) {
-    if (Test-Path "$path\DCS") {
-        $SavedGamesPath = $path
-        break
+# Discover DCS Saved Games location from config-global.json
+$globalConfigPath = Join-Path $PSScriptRoot "..\config-global.json"
+$SavedGamesPath = if (Test-Path $globalConfigPath) {
+    try {
+        $globalConfig = Get-Content -Path $globalConfigPath -Raw | ConvertFrom-Json
+        if ($globalConfig.paths -and $globalConfig.paths.savedGamesPath) {
+            $path = $globalConfig.paths.savedGamesPath
+            [Environment]::ExpandEnvironmentVariables($path)
+        } else {
+            "$env:USERPROFILE\Saved Games"
+        }
+    } catch {
+        "$env:USERPROFILE\Saved Games"
     }
+} else {
+    "$env:USERPROFILE\Saved Games"
 }
-if (-not $SavedGamesPath) {
-    $SavedGamesPath = "$env:USERPROFILE\Saved Games"
+
+$DCSsavedGamesPath = if ($SavedGamesPath.TrimEnd('\') -match '\\DCS$') {
+    $SavedGamesPath.TrimEnd('\')
+} else {
+    Join-Path $SavedGamesPath 'DCS'
 }
 
 # Restore groups with labels for output (matches backup structure)
@@ -83,12 +94,12 @@ $RestoreGroups = @(
     @{
         Label = "DCS World"
         Files = @(
-            @{ BackupPattern = "DCS\Config\autoexec.cfg"; Dest = "$SavedGamesPath\DCS\Config\autoexec.cfg" },
-            @{ BackupPattern = "DCS\Config\options.lua"; Dest = "$SavedGamesPath\DCS\Config\options.lua" },
-            @{ BackupPattern = "DCS\Config\serverSettings.lua"; Dest = "$SavedGamesPath\DCS\Config\serverSettings.lua" }
+            @{ BackupPattern = "DCS\Config\autoexec.cfg"; Dest = "$DCSsavedGamesPath\Config\autoexec.cfg" },
+            @{ BackupPattern = "DCS\Config\options.lua"; Dest = "$DCSsavedGamesPath\Config\options.lua" },
+            @{ BackupPattern = "DCS\Config\serverSettings.lua"; Dest = "$DCSsavedGamesPath\Config\serverSettings.lua" }
         )
         Folders = @(
-            @{ BackupPattern = "DCS\Config\Input"; Dest = "$SavedGamesPath\DCS\Config\Input" }
+            @{ BackupPattern = "DCS\Config\Input"; Dest = "$DCSsavedGamesPath\Config\Input" }
         )
     },
     @{
@@ -171,7 +182,7 @@ try {
     Write-Host ""
     Write-Host "[FILE]   Restoring from: $BackupFolder" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "[DCS]    DCS location: $SavedGamesPath\DCS" -ForegroundColor Gray
+    Write-Host "[DCS]    DCS location: $DCSsavedGamesPath" -ForegroundColor Gray
     Write-Host ""
     Write-Host "------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""

@@ -20,21 +20,24 @@ $backupDir = Join-Path $rootDirectory "Backups"
 $timestamp = Get-Date -Format 'yyyy-MM-dd-HH-mm-ss'
 $displayDate = Get-Date -Format 'MM/dd/yyyy HH:mm:ss'
 
-# Load config parser and get optimization settings
-$configParserPath = Join-Path $rootDirectory "Assets\config-parser.ps1"
-if (Test-Path $configParserPath) {
-    . $configParserPath
-    $optimizationConfig = Get-OptimizationConfig
-} else {
-    $optimizationConfig = @{}
+# Load config from config-optimizations.json
+$configPath = Join-Path $rootDirectory "config-optimizations.json"
+$optimizationConfig = @{}
+if (Test-Path $configPath) {
+    try {
+        $configData = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+        $optimizationConfig = $configData.registryOptimizations
+    } catch {
+        Write-Host "Warning: Failed to load config-optimizations.json" -ForegroundColor Yellow
+    }
 }
 
 # Helper function to check if optimization is enabled
 function Test-OptEnabled {
     param([string]$Id)
     if ($optimizationConfig.Count -eq 0) { return $true }
-    if (-not $optimizationConfig.ContainsKey($Id)) { return $true }
-    return $optimizationConfig[$Id]
+    if (-not $optimizationConfig.PSObject.Properties.Name.Contains($Id)) { return $true }
+    return $optimizationConfig.$Id
 }
 
 # Counters

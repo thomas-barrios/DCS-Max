@@ -931,7 +931,7 @@ $Shortcut.Save()
         
         private string GetOptimizationConfigFilePath()
         {
-            return Path.Combine(projectRoot, "5-Optimization", "performance-optimizations.ini");
+            return Path.Combine(projectRoot, "config-optimizations.json");
         }
 
         private object GetOptimizationConfigPath()
@@ -976,25 +976,42 @@ $Shortcut.Save()
         private Dictionary<string, bool> ParseOptimizationConfig(string configPath)
         {
             var config = new Dictionary<string, bool>();
-            var lines = File.ReadAllLines(configPath);
+            string jsonContent = File.ReadAllText(configPath);
+            var jsonConfig = JObject.Parse(jsonContent);
 
-            foreach (var line in lines)
+            // Parse registry optimizations
+            if (jsonConfig["registryOptimizations"] is JObject registryOpts)
             {
-                var trimmed = line.Trim();
-                
-                // Skip empty lines and comments
-                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("="))
-                    continue;
-
-                // Parse O&O format: ID<whitespace>+/-<whitespace># Description
-                // Example: R001	+	# CPU Core Parking: Disabled
-                // Also matches: CAT_REGISTRY	+	# Registry Optimization category
-                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^([A-Z][A-Z0-9_]+)\s+([+-])\s+#");
-                if (match.Success)
+                foreach (var prop in registryOpts.Properties())
                 {
-                    string id = match.Groups[1].Value;
-                    bool enabled = match.Groups[2].Value == "+";
-                    config[id] = enabled;
+                    config[prop.Name] = prop.Value.Value<bool>();
+                }
+            }
+
+            // Parse service optimizations
+            if (jsonConfig["serviceOptimizations"] is JObject serviceOpts)
+            {
+                foreach (var prop in serviceOpts.Properties())
+                {
+                    config[prop.Name] = prop.Value.Value<bool>();
+                }
+            }
+
+            // Parse task optimizations
+            if (jsonConfig["taskOptimizations"] is JObject taskOpts)
+            {
+                foreach (var prop in taskOpts.Properties())
+                {
+                    config[prop.Name] = prop.Value.Value<bool>();
+                }
+            }
+
+            // Parse cache optimizations
+            if (jsonConfig["cacheOptimizations"] is JObject cacheOpts)
+            {
+                foreach (var prop in cacheOpts.Properties())
+                {
+                    config[prop.Name] = prop.Value.Value<bool>();
                 }
             }
 
@@ -1024,74 +1041,60 @@ $Shortcut.Save()
 
         private void UpdateOptimizationConfigFile(string configPath, Dictionary<string, bool> config)
         {
-            var lines = File.ReadAllLines(configPath);
-            var updatedLines = new List<string>();
-            var processedIds = new HashSet<string>();
+            // Read existing JSON config
+            string jsonContent = File.ReadAllText(configPath);
+            var jsonConfig = JObject.Parse(jsonContent);
 
-            foreach (var line in lines)
+            // Update registry optimizations
+            if (jsonConfig["registryOptimizations"] is JObject registryOpts)
             {
-                var trimmed = line.Trim();
-                
-                // Check if this line matches an optimization entry (including CAT_ entries)
-                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^([A-Z][A-Z0-9_]+)\s+([+-])\s+(#.*)$");
-                if (match.Success)
+                foreach (var prop in registryOpts.Properties())
                 {
-                    string id = match.Groups[1].Value;
-                    string comment = match.Groups[3].Value;
-                    processedIds.Add(id);
-                    
-                    // Use config value if provided, otherwise keep existing
-                    bool enabled = config.ContainsKey(id) ? config[id] : (match.Groups[2].Value == "+");
-                    string newState = enabled ? "+" : "-";
-                    
-                    updatedLines.Add(string.Format("{0}\t{1}\t{2}", id, newState, comment));
-                }
-                else
-                {
-                    // Keep non-matching lines as-is (comments, headers, etc.)
-                    updatedLines.Add(line);
+                    if (config.ContainsKey(prop.Name))
+                    {
+                        prop.Value = config[prop.Name];
+                    }
                 }
             }
 
-            // Add any CAT_ entries that aren't in the file yet
-            var categoryIds = new Dictionary<string, string>
+            // Update service optimizations
+            if (jsonConfig["serviceOptimizations"] is JObject serviceOpts)
             {
-                { "CAT_REGISTRY", "# Registry Optimization category enabled" },
-                { "CAT_SERVICES", "# Windows Services category enabled" },
-                { "CAT_TASKS", "# Scheduled Tasks category enabled" },
-                { "CAT_CACHE", "# Cache Cleaning category enabled" }
-            };
-
-            // Find position to insert category entries (after the header comments)
-            int insertPosition = 0;
-            for (int i = 0; i < updatedLines.Count; i++)
-            {
-                if (updatedLines[i].StartsWith("# ==========") && updatedLines[i].Contains("REGISTRY"))
+                foreach (var prop in serviceOpts.Properties())
                 {
-                    insertPosition = i;
-                    break;
+                    if (config.ContainsKey(prop.Name))
+                    {
+                        prop.Value = config[prop.Name];
+                    }
                 }
             }
 
-            var newCatLines = new List<string>();
-            foreach (var cat in categoryIds)
+            // Update task optimizations
+            if (jsonConfig["taskOptimizations"] is JObject taskOpts)
             {
-                if (!processedIds.Contains(cat.Key) && config.ContainsKey(cat.Key))
+                foreach (var prop in taskOpts.Properties())
                 {
-                    string state = config[cat.Key] ? "+" : "-";
-                    newCatLines.Add(string.Format("{0}\t{1}\t{2}", cat.Key, state, cat.Value));
+                    if (config.ContainsKey(prop.Name))
+                    {
+                        prop.Value = config[prop.Name];
+                    }
                 }
             }
 
-            if (newCatLines.Count > 0 && insertPosition > 0)
+            // Update cache optimizations
+            if (jsonConfig["cacheOptimizations"] is JObject cacheOpts)
             {
-                newCatLines.Insert(0, "");
-                newCatLines.Insert(1, "# CATEGORY TOGGLES");
-                newCatLines.Add("");
-                updatedLines.InsertRange(insertPosition, newCatLines);
+                foreach (var prop in cacheOpts.Properties())
+                {
+                    if (config.ContainsKey(prop.Name))
+                    {
+                        prop.Value = config[prop.Name];
+                    }
+                }
             }
 
-            File.WriteAllLines(configPath, updatedLines, Encoding.UTF8);
+            // Write back the updated JSON
+            File.WriteAllText(configPath, jsonConfig.ToString(Formatting.Indented), Encoding.UTF8);
         }
 
         private object OpenFile(string filePath)
@@ -1162,9 +1165,27 @@ $Shortcut.Save()
 
                     using (var process = Process.Start(psi))
                     {
-                        string stdout = process.StandardOutput.ReadToEnd();
-                        string stderr = process.StandardError.ReadToEnd();
-                        process.WaitForExit();
+                        // Read output asynchronously to avoid deadlocks
+                        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                        var stderrTask = process.StandardError.ReadToEndAsync();
+                        
+                        // Wait for exit with timeout (5 minutes for winget installs)
+                        bool exited = process.WaitForExit(300000); // 5 minutes timeout
+                        
+                        if (!exited)
+                        {
+                            process.Kill();
+                            return new
+                            {
+                                success = false,
+                                exitCode = -1,
+                                stdout = "",
+                                stderr = "Command timed out after 5 minutes"
+                            };
+                        }
+                        
+                        string stdout = stdoutTask.Result;
+                        string stderr = stderrTask.Result;
 
                         return new
                         {
@@ -2193,125 +2214,28 @@ ExitApp
 
         private object DetectDcsPath()
         {
-            // Try registry first (Steam and standalone installations)
-            string[] registryPaths = new string[]
-            {
-                @"SOFTWARE\Eagle Dynamics\DCS World",
-                @"SOFTWARE\Eagle Dynamics\DCS World OpenBeta",
-                @"SOFTWARE\WOW6432Node\Eagle Dynamics\DCS World",
-                @"SOFTWARE\WOW6432Node\Eagle Dynamics\DCS World OpenBeta"
-            };
+            string defaultPath = @"C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe";
 
-            foreach (string regPath in registryPaths)
+            if (File.Exists(defaultPath))
             {
-                try
-                {
-                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath))
-                    {
-                        if (key != null)
-                        {
-                            object pathValue = key.GetValue("Path");
-                            if (pathValue != null)
-                            {
-                                string dcsRoot = pathValue.ToString();
-                                string exePath = Path.Combine(dcsRoot, "bin", "DCS.exe");
-                                if (File.Exists(exePath))
-                                {
-                                    return new { found = true, path = exePath, source = "registry" };
-                                }
-                            }
-                        }
-                    }
-                }
-                catch { }
+                return new { found = true, path = defaultPath, source = "default" };
             }
 
-            // Check common installation paths
-            string[] commonPaths = new string[]
-            {
-                @"C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
-                @"C:\Program Files\Eagle Dynamics\DCS World OpenBeta\bin\DCS.exe",
-                @"D:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
-                @"D:\Program Files\Eagle Dynamics\DCS World OpenBeta\bin\DCS.exe",
-                @"E:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe",
-                @"D:\Games\DCS World\bin\DCS.exe",
-                @"E:\Games\DCS World\bin\DCS.exe"
-            };
-
-            foreach (string path in commonPaths)
-            {
-                if (File.Exists(path))
-                {
-                    return new { found = true, path = path, source = "filesystem" };
-                }
-            }
-
-            return new { found = false, path = @"C:\Program Files\Eagle Dynamics\DCS World\bin\DCS.exe", source = "default" };
+            return new { found = false, path = defaultPath, source = "default" };
         }
 
         private object DetectDcsSavedGamesPath()
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string userName = Environment.UserName;
-            
-            System.Diagnostics.Debug.WriteLine($"DetectDcsSavedGamesPath: userName = {userName}");
-            
-            // Build list of possible paths including non-standard drive locations
-            var possiblePaths = new List<string>();
-            
-            // Check all fixed drives FIRST for Users\<username>\Saved Games\DCS pattern
-            // This prioritizes non-C: drive locations which are often intentional user choices
-            foreach (DriveInfo drive in DriveInfo.GetDrives())
-            {
-                if (drive.DriveType == DriveType.Fixed && drive.IsReady)
-                {
-                    string driveLetter = drive.Name; // e.g., "D:\"
-                    
-                    // Skip C: drive initially - we'll check it at the end
-                    if (driveLetter.StartsWith("C", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    
-                    // D:\Users\<username>\Saved Games\DCS pattern
-                    string dcsPath = Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS");
-                    System.Diagnostics.Debug.WriteLine($"DetectDcsSavedGamesPath: Checking {dcsPath}");
-                    possiblePaths.Add(dcsPath);
-                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS.openbeta"));
-                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS"));
-                    possiblePaths.Add(Path.Combine(driveLetter, "Users", userName, "Saved Games", "DCS.openbeta"));
-                    
-                    // Some users have Saved Games directly on drive root
-                    possiblePaths.Add(Path.Combine(driveLetter, "Saved Games", "DCS"));
-                    possiblePaths.Add(Path.Combine(driveLetter, "Saved Games", "DCS.openbeta"));
-                }
-            }
-            
-            // Add standard C: drive locations last
-            possiblePaths.Add(Path.Combine(userProfile, "Saved Games", "DCS"));
-            possiblePaths.Add(Path.Combine(userProfile, "Saved Games", "DCS.openbeta"));
+            string defaultPath = Path.Combine(userProfile, "Saved Games", "DCS");
 
-            // First pass: look for folders with actual DCS content (Config subfolder)
-            foreach (string path in possiblePaths)
+            if (Directory.Exists(defaultPath))
             {
-                if (Directory.Exists(path) && Directory.Exists(Path.Combine(path, "Config")))
-                {
-                    return new { found = true, path = path, source = "filesystem" };
-                }
-            }
-            
-            // Second pass: any existing folder
-            foreach (string path in possiblePaths)
-            {
-                if (Directory.Exists(path))
-                {
-                    return new { found = true, path = path, source = "filesystem" };
-                }
+                return new { found = true, path = defaultPath, source = "default" };
             }
 
-            // Return default path even if not found
-            return new { found = false, path = Path.Combine(userProfile, "Saved Games", "DCS"), source = "default" };
-        }
-
-        private object DetectCapFrameXPath()
+            return new { found = false, path = defaultPath, source = "default" };
+        }        private object DetectCapFrameXPath()
         {
             // Try registry first (winget/installer registrations)
             try
