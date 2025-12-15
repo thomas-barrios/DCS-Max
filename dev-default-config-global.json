@@ -1,0 +1,17 @@
+{
+  "paths": {
+    "dcsExe": "%ProgramFiles%\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
+    "dcsInstallation": "%ProgramFiles%\\Eagle Dynamics\\DCS World",
+    "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
+    "notepadpp": "%ProgramFiles%\\Notepad++\\notepad++.exe",
+    "autohotkey": "%ProgramFiles%\\AutoHotkey\\v2\\AutoHotkey64.exe",
+    "capframex": "%USERPROFILE%\\AppData\\Local\\Microsoft\\WinGet\\Packages\\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\\CapFrameX.exe",
+    "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures"
+  },
+  "vr": {
+    "enabled": false,
+    "runtimePath": ""
+  },
+  "description": "DCS-Max Global Configuration - Paths, VR hardware, timing, shared by all scripts",
+  "version": "2.0.0"
+}

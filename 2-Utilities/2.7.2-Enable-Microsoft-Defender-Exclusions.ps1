@@ -1,7 +1,27 @@
 # Add-DefenderExclusions.ps1
 # Adiciona pastas específicas nas exclusões do Microsoft Defender
 
-# Lista de pastas a serem adicionadas
+# Carrega caminhos do config-global.json (quando disponível)
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDir = Split-Path -Parent $scriptRoot
+$globalConfigPath = Join-Path $rootDir "config-global.json"
+$dcsInstallFromConfig = $null
+$dcsSavedGamesFromConfig = $null
+if (Test-Path $globalConfigPath) {
+    try {
+        $globalConfig = Get-Content -Path $globalConfigPath -Raw | ConvertFrom-Json
+        if ($globalConfig.paths) {
+            if ($globalConfig.paths.dcsInstallation) {
+                $dcsInstallFromConfig = [Environment]::ExpandEnvironmentVariables($globalConfig.paths.dcsInstallation).TrimEnd('\\')
+            }
+            if ($globalConfig.paths.savedGamesPath) {
+                $dcsSavedGamesFromConfig = [Environment]::ExpandEnvironmentVariables($globalConfig.paths.savedGamesPath).TrimEnd('\\')
+            }
+        }
+    } catch { }
+}
+
+# Lista de pastas a serem adicionadas (mantém defaults, mas prioriza valores do config)
 $paths = @(
     "C:\Program Files (x86)\CapFrameX",
     "C:\Program Files (x86)\NVIDIA Corporation",
@@ -21,8 +41,8 @@ $paths = @(
     "C:\Program Files\XRFrameTools",
     "C:\Users\Thomas\Documents\CapFrameX",
     "C:\Users\Thomas\Documents\Tacview",
-    "D:\Program Files\Eagle Dynamics\DCS World",
-    "D:\Users\Thomas\Saved Games\DCS",
+    $(if ($dcsInstallFromConfig) { $dcsInstallFromConfig } else { "D:\\Program Files\\Eagle Dynamics\\DCS World" }),
+    $(if ($dcsSavedGamesFromConfig) { $dcsSavedGamesFromConfig } else { "D:\\Users\\Thomas\\Saved Games\\DCS" }),
     "C:\ProgramData\DCS-SimpleRadio-Standalone"
 )
 

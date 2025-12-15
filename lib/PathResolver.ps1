@@ -1,5 +1,5 @@
 # Minimal Path Resolver for DCS-Max
-# Single function: Get-DCSLocation - discovers DCS Saved Games across multi-computer setups
+# Single function: Get-DCSLocation - returns Saved Games base folder
 
 function Get-DCSLocation {
     <#
@@ -7,13 +7,32 @@ function Get-DCSLocation {
         Discovers DCS Saved Games folder across different drives and user profiles
     
     .DESCRIPTION
-        Scans D:\, E:\, then C:\ for Users\*\Saved Games\DCS
-        Returns first valid path found, or fallback to standard location
+        First reads config-global.json's paths.savedGamesPath and returns its parent (Saved Games).
+        If not configured, scans D:\, E:\, then C:\ for Users\*\Saved Games\DCS.
+        Returns first valid path found, or fallback to standard location.
     
     .OUTPUTS
         String: Path to Saved Games folder (parent of DCS folder)
     #>
     
+    # Prefer value from config-global.json if available
+    try {
+        $configPath = Join-Path $PSScriptRoot "..\config-global.json"
+        if (Test-Path $configPath) {
+            $cfg = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+            if ($cfg.paths -and $cfg.paths.savedGamesPath) {
+                $sg = [Environment]::ExpandEnvironmentVariables($cfg.paths.savedGamesPath)
+                if (-not [string]::IsNullOrWhiteSpace($sg)) {
+                    $sg = $sg.TrimEnd('\\')
+                    # Return the parent Saved Games folder if a DCS profile is provided
+                    $parent = Split-Path -Path $sg -Parent
+                    if (Test-Path $parent) { return $parent }
+                    return $parent
+                }
+            }
+        }
+    } catch { }
+
     $drives = @("D", "E", "C")
     
     foreach ($drive in $drives) {

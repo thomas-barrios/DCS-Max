@@ -83,23 +83,21 @@ $SavedGamesPath = if (Test-Path $globalConfigPath) {
     "$env:USERPROFILE\Saved Games"
 }
 
-$DCSsavedGamesPath = if ($SavedGamesPath.TrimEnd('\') -match '\\DCS$') {
-    $SavedGamesPath.TrimEnd('\')
-} else {
-    Join-Path $SavedGamesPath 'DCS'
-}
+# Use the savedGamesPath from config-global.json as-is (single source of truth)
+# Note: value must include the final DCS profile folder name (e.g., 'DCS' or 'DCS.openbeta').
+$DCSsavedGamesPath = $SavedGamesPath.TrimEnd('\\')
 
 # Restore groups with labels for output (matches backup structure)
 $RestoreGroups = @(
     @{
         Label = "DCS World"
         Files = @(
-            @{ BackupPattern = "DCS\Config\autoexec.cfg"; Dest = "$DCSsavedGamesPath\Config\autoexec.cfg" },
-            @{ BackupPattern = "DCS\Config\options.lua"; Dest = "$DCSsavedGamesPath\Config\options.lua" },
-            @{ BackupPattern = "DCS\Config\serverSettings.lua"; Dest = "$DCSsavedGamesPath\Config\serverSettings.lua" }
+            @{ BackupPattern = "DCS*\Config\autoexec.cfg"; Dest = "$DCSsavedGamesPath\Config\autoexec.cfg" },
+            @{ BackupPattern = "DCS*\Config\options.lua"; Dest = "$DCSsavedGamesPath\Config\options.lua" },
+            @{ BackupPattern = "DCS*\Config\serverSettings.lua"; Dest = "$DCSsavedGamesPath\Config\serverSettings.lua" }
         )
         Folders = @(
-            @{ BackupPattern = "DCS\Config\Input"; Dest = "$DCSsavedGamesPath\Config\Input" }
+            @{ BackupPattern = "DCS*\Config\Input"; Dest = "$DCSsavedGamesPath\Config\Input" }
         )
     },
     @{

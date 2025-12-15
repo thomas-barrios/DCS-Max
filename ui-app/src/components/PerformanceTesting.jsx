@@ -116,10 +116,12 @@ function CalibrationWizard({
     return globalConfig?.paths?.[key] || '';
   };
 
-  const getVRHardware = () => {
-    const hardware = config?.testConfiguration?.vr?.hardware;
-    // Return 'none' if hardware is undefined, null, or 'none'
-    return hardware && hardware !== 'none' ? hardware : 'none';
+  const getVREnabled = () => {
+    return globalConfig?.vr?.enabled || false;
+  };
+
+  const getVRRuntimePath = () => {
+    return globalConfig?.vr?.runtimePath || '';
   };
 
   const getMissionPath = () => {
@@ -135,24 +137,21 @@ function CalibrationWizard({
     startTimer();
     
     try {
-      const hardware = getVRHardware();
+      const vrPath = getVRRuntimePath();
       
       // Check if VR is configured
-      if (!hardware || hardware === 'none') {
-        setActionStatus({ success: false, message: 'No VR headset configured. Configure VR in Install Required Software tab.' });
+      if (!vrPath) {
+        setActionStatus({ success: false, message: 'No VR runtime configured. Configure VR in Install Required Software tab.' });
         return;
       }
       
-      // Get VR client path from config
-      const vrClientPath = globalConfig?.vrHeadsets?.[hardware.toLowerCase()]?.path || '';
-      
-      const result = await window.dcsMax.launchVRSoftware(hardware, vrClientPath);
+      const result = await window.dcsMax.launchVRSoftware('VR', vrPath);
       
       if (result.success) {
         if (result.alreadyRunning) {
-          setActionStatus({ success: true, message: `${hardware} already running` });
+          setActionStatus({ success: true, message: 'VR runtime already running' });
         } else {
-          setActionStatus({ success: true, message: `${hardware} launched` });
+          setActionStatus({ success: true, message: 'VR runtime launched' });
         }
       } else {
         setActionStatus({ success: false, message: result.error });
@@ -996,7 +995,7 @@ function PerformanceTesting() {
 
   // Config values for display
   const configInfo = config?.configuration || {};
-  const enableVR = config?.testConfiguration?.vr?.enabled || false;
+  const enableVR = globalConfig?.vr?.enabled || false;
   const configMissionPath = config?.testConfiguration?.mission || 'Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz';
   const effectiveMissionPath = selectedMission || configMissionPath;
   const recordLength = config?.timing?.recordLength ? (config?.timing?.recordLength / 1000) : 60;
@@ -1104,6 +1103,8 @@ function PerformanceTesting() {
         {activeTab === 'run' && (
           <RunTestsTab
             config={config}
+            globalConfig={globalConfig}
+            setGlobalConfig={setGlobalConfig}
             updateConfigValue={updateConfigValue}
             running={running}
             runBenchmark={runBenchmark}
@@ -1138,7 +1139,7 @@ function PerformanceTesting() {
           setTimer={setCalibrationTimer}
           startTime={calibrationStartTime}
           setStartTime={setCalibrationStartTime}
-          vrEnabled={config?.testConfiguration?.vr?.enabled}
+          vrEnabled={globalConfig?.vr?.enabled || false}
           config={config}
           globalConfig={globalConfig}
           onClose={closeCalibration}
@@ -1523,6 +1524,8 @@ function SettingRow({ setting, isEnabled, selectedValues, onToggle, onToggleValu
 // Run Tests Tab Component (merged with Configuration)
 function RunTestsTab({
   config,
+  globalConfig,
+  setGlobalConfig,
   updateConfigValue,
   running,
   runBenchmark,
@@ -1673,12 +1676,26 @@ function RunTestsTab({
                 <span className="text-sm text-slate-300">Display Mode</span>
                 <div className="flex items-center space-x-3">
                   {/* 2D / VR Toggle */}
+                  {globalConfig && (
                   <div className="flex bg-slate-700 rounded-lg p-1">
                     <button
-                      onClick={() => updateConfigValue('testConfiguration.vr.enabled', false)}
+                      onClick={async () => {
+                        try {
+                          const result = await window.dcsMax.readJsonConfig('config-global.json');
+                          if (result.success) {
+                            const globalCfg = result.data || {};
+                            if (!globalCfg.vr) globalCfg.vr = {};
+                            globalCfg.vr.enabled = false;
+                            await window.dcsMax.writeJsonConfig('config-global.json', globalCfg);
+                            setGlobalConfig(globalCfg);
+                          }
+                        } catch (err) {
+                          console.error('Failed to update VR config:', err);
+                        }
+                      }}
                       disabled={running}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        !config?.testConfiguration?.vr?.enabled
+                        !(globalConfig?.vr?.enabled)
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-400 hover:text-white'
                       } disabled:opacity-50`}
@@ -1689,10 +1706,23 @@ function RunTestsTab({
                       </div>
                     </button>
                     <button
-                      onClick={() => updateConfigValue('testConfiguration.vr.enabled', true)}
+                      onClick={async () => {
+                        try {
+                          const result = await window.dcsMax.readJsonConfig('config-global.json');
+                          if (result.success) {
+                            const globalCfg = result.data || {};
+                            if (!globalCfg.vr) globalCfg.vr = {};
+                            globalCfg.vr.enabled = true;
+                            await window.dcsMax.writeJsonConfig('config-global.json', globalCfg);
+                            setGlobalConfig(globalCfg);
+                          }
+                        } catch (err) {
+                          console.error('Failed to update VR config:', err);
+                        }
+                      }}
                       disabled={running}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        config?.testConfiguration?.vr?.enabled
+                        globalConfig?.vr?.enabled === true
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-400 hover:text-white'
                       } disabled:opacity-50`}
@@ -1703,11 +1733,12 @@ function RunTestsTab({
                       </div>
                     </button>
                   </div>
+                  )}
                   
-                  {/* VR Hardware (only shown when VR is enabled) */}
-                  {config?.testConfiguration?.vr?.enabled && (
+                  {/* VR Runtime Path (only shown when VR is enabled) */}
+                  {globalConfig?.vr?.enabled && (
                     <span className="px-2 py-1.5 text-cyan-400 text-sm font-medium">
-                      {config?.testConfiguration?.vr?.hardware || 'Not configured'}
+                      {globalConfig?.vr?.runtimePath ? 'Configured' : 'Not configured'}
                     </span>
                   )}
                 </div>
@@ -1751,7 +1782,7 @@ function RunTestsTab({
               <p className="text-xs text-slate-500 mb-2">Configure wait times for each phase of the benchmark cycle:</p>
               
               {/* Phase 1: VR startup (only if VR enabled) */}
-              {config?.testConfiguration?.vr?.enabled && (
+              {globalConfig?.vr?.enabled && (
                 <div className="flex items-center space-x-3">
                   <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">1</span>
                   <div className="flex-1">
@@ -1773,7 +1804,7 @@ function RunTestsTab({
               
               {/* Phase 2: Mission load */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '2' : '1'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{globalConfig?.vr?.enabled ? '2' : '1'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Mission Load</label>
                   <p className="text-xs text-slate-500">Wait for DCS mission to fully load</p>
@@ -1792,7 +1823,7 @@ function RunTestsTab({
               
               {/* Phase 3: Before record */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '3' : '2'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{globalConfig?.vr?.enabled ? '3' : '2'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Pre-Record Delay</label>
                   <p className="text-xs text-slate-500">Stabilize before recording starts</p>
@@ -1811,7 +1842,7 @@ function RunTestsTab({
               
               {/* Phase 4: Record length (highlighted as main setting) */}
               <div className="flex items-center space-x-3 bg-blue-500/10 -mx-4 px-4 py-2 border-l-2 border-blue-500">
-                <span className="w-6 h-6 rounded-full bg-blue-600 text-xs flex items-center justify-center text-white">{config?.testConfiguration?.vr?.enabled ? '4' : '3'}</span>
+                <span className="w-6 h-6 rounded-full bg-blue-600 text-xs flex items-center justify-center text-white">{globalConfig?.vr?.enabled ? '4' : '3'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-white font-medium">Recording Duration</label>
                   <p className="text-xs text-slate-400">CapFrameX capture length per test</p>
@@ -1830,7 +1861,7 @@ function RunTestsTab({
               
               {/* Phase 5: CapFrameX write */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '5' : '4'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{globalConfig?.vr?.enabled ? '5' : '4'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Save Results</label>
                   <p className="text-xs text-slate-500">Wait for CapFrameX to write data</p>
@@ -1849,7 +1880,7 @@ function RunTestsTab({
               
               {/* Phase 6: Mission restart */}
               <div className="flex items-center space-x-3">
-                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{config?.testConfiguration?.vr?.enabled ? '6' : '5'}</span>
+                <span className="w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-400">{globalConfig?.vr?.enabled ? '6' : '5'}</span>
                 <div className="flex-1">
                   <label className="block text-sm text-slate-300">Mission Restart</label>
                   <p className="text-xs text-slate-500">Wait after mission restart command</p>
@@ -2004,8 +2035,8 @@ function RunTestsTab({
             <div className={`text-lg font-semibold ${enableVR ? 'text-purple-400' : 'text-blue-400'}`}>
               {enableVR ? 'VR' : '2D'}
             </div>
-            {enableVR && config?.testConfiguration?.vr?.hardware && (
-              <div className="text-xs text-slate-400 mt-1">{config?.testConfiguration?.vr?.hardware}</div>
+            {enableVR && globalConfig?.vr?.runtimePath && (
+              <div className="text-xs text-slate-400 mt-1">Configured</div>
             )}
           </div>
           

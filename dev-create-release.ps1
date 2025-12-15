@@ -76,13 +76,21 @@ function Update-VersionInFiles {
         Write-Host "  ✓ Updated App.jsx" -ForegroundColor Green
     }
     
-    # 3. package.json
+    # 3. package.json (update via JSON to avoid corruption)
     $packageJsonPath = Join-Path $scriptDir "ui-app\package.json"
     if (Test-Path $packageJsonPath) {
-        $content = Get-Content $packageJsonPath -Raw
-        $content = $content -replace '"version": "[0-9]+\.[0-9]+\.[0-9]+"', "`"version`": `"$NewVersion`""
-        Set-Content -Path $packageJsonPath -Value $content -NoNewline
-        Write-Host "  ✓ Updated package.json" -ForegroundColor Green
+        try {
+            $pkg = Get-Content -Path $packageJsonPath -Raw | ConvertFrom-Json
+            $pkg.version = $NewVersion
+            $pkg | ConvertTo-Json -Depth 10 | Set-Content -Path $packageJsonPath -Encoding UTF8
+            Write-Host "  ✓ Updated package.json" -ForegroundColor Green
+        } catch {
+            Write-Host "  ✗ Failed to update package.json via JSON. Falling back to string replace." -ForegroundColor Yellow
+            $content = Get-Content $packageJsonPath -Raw
+            $content = $content -replace '"version":\s*"[^"]*"', "`"version`": `"$NewVersion`""
+            Set-Content -Path $packageJsonPath -Value $content -Encoding UTF8
+            Write-Host "  ✓ Updated package.json (fallback)" -ForegroundColor Green
+        }
     }
     
     # 4. README.md (download links)
@@ -95,14 +103,28 @@ function Update-VersionInFiles {
         Write-Host "  ✓ Updated README.md download links" -ForegroundColor Green
     }
     
-    # 5. app.manifest (optional - assemblyIdentity version)
+    # 5. app.manifest (assemblyIdentity version) - update via XML
     $manifestPath = Join-Path $scriptDir "ui-app\app.manifest"
     if (Test-Path $manifestPath) {
-        $content = Get-Content $manifestPath -Raw
-        # assemblyIdentity uses 4-part version (1.2.1.0)
-        $content = $content -replace 'version="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"', "version=`"$NewVersion.0`""
-        Set-Content -Path $manifestPath -Value $content -NoNewline
-        Write-Host "  ✓ Updated app.manifest" -ForegroundColor Green
+        try {
+            [xml]$xml = Get-Content -Path $manifestPath -Raw
+            # Handle default namespace by using Select-Xml
+            $ns = @{ asm1 = "urn:schemas-microsoft-com:asm.v1" }
+            $node = Select-Xml -Xml $xml -Namespace $ns -XPath "/asm1:assembly/asm1:assemblyIdentity"
+            if ($node -and $node.Node) {
+                $node.Node.version = "$NewVersion.0"
+                $xml.Save($manifestPath)
+                Write-Host "  ✓ Updated app.manifest" -ForegroundColor Green
+            } else {
+                # Fallback to regex replace
+                $content = Get-Content -Path $manifestPath -Raw
+                $content = $content -replace 'version="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"', "version=`"$NewVersion.0`""
+                Set-Content -Path $manifestPath -Value $content -Encoding UTF8
+                Write-Host "  ✓ Updated app.manifest (fallback)" -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "  ✗ Failed to update app.manifest: $_" -ForegroundColor Yellow
+        }
     }
     
     # Save version to tracking file
@@ -155,6 +177,9 @@ if ($Version) {
 
 Write-Host "`nTarget Version: $targetVersion" -ForegroundColor Green
 
+# Normalize version text to avoid trailing whitespace
+$targetVersion = $targetVersion.Trim()
+
 # Close DCS-Max process if running
 Write-Host "Closing DCS-Max if running..." -ForegroundColor Yellow
 Get-Process DCS-Max -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -171,7 +196,7 @@ Write-Host "Config files restored to defaults" -ForegroundColor Green
 
 # Create release folder OUTSIDE the project (sibling folder)
 $releaseDir = Join-Path (Split-Path $scriptDir -Parent) "DCS-Max-Releases"
-$releaseName = "DCS-Max-v$targetVersion"
+$releaseName = ("DCS-Max-v{0}" -f $targetVersion).Trim()
 $releaseFolder = Join-Path $releaseDir $releaseName
 $releaseZip = Join-Path $releaseDir "$releaseName.zip"
 
@@ -320,6 +345,9 @@ $benchmarkLog = Join-Path $releaseFolder "4-Performance-Testing\4.1.2-dcs-testin
 if (Test-Path $benchmarkLog) {
     Set-Content -Path $benchmarkLog -Value "# DCS-Max Benchmark Log`r`n# Logs will appear here after running benchmarks."
 }
+
+# Remove any dev-*.* files anywhere in the release tree
+Get-ChildItem -Path $releaseFolder -Recurse -File -Filter "dev-*.*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 
 

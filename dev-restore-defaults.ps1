@@ -10,16 +10,32 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Restoring config-global.json to defaults..." -ForegroundColor Yellow
+Write-Host "Restoring config-global.json to defaults (preserve structure)..." -ForegroundColor Yellow
 
-$configGlobalDefaults = @{
+$configGlobalPath = "config-global.json"
+$configGlobal = $null
+try {
+    if (Test-Path $configGlobalPath) {
+        $configGlobal = Get-Content -Path $configGlobalPath -Raw | ConvertFrom-Json
+    }
+} catch {}
+
+if (-not $configGlobal) {
+    $configGlobal = [ordered]@{
+        version = "2.0.0"
+        description = "DCS-Max Global Configuration - Paths, VR hardware, timing, shared by all scripts"
+        paths = @{}
+        vr = @{}
+    }
+}
+
+$defaultGlobal = @{
     version = "2.0.0"
     description = "DCS-Max Global Configuration - Paths, VR hardware, timing, shared by all scripts"
     paths = @{
         dcsExe = "%ProgramFiles%\Eagle Dynamics\DCS World\bin\DCS.exe"
         dcsInstallation = "%ProgramFiles%\Eagle Dynamics\DCS World"
         savedGamesPath = "%USERPROFILE%\Saved Games\DCS"
-        pimax = "%ProgramFiles%\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
         capframex = "%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\CapFrameX.exe"
         capframexFolder = "%USERPROFILE%\Documents\CapFrameX\Captures"
         notepadpp = "%ProgramFiles%\Notepad++\notepad++.exe"
@@ -27,29 +43,75 @@ $configGlobalDefaults = @{
     }
     vr = @{
         enabled = $false
-        hardware = ""
-    }
-    vrHeadsets = @{
-        metaquest = @{
-            name = "Meta Quest (Link/Air Link)"
-            path = "%ProgramFiles%\Meta\MetaQuestLink\MetaQuestLink.exe"
-        }
-        steamvr = @{
-            name = "SteamVR (Vive/Index/Reverb G2)"
-            path = "%ProgramFiles(x86)%\Steam\steamapps\common\SteamVR\bin\win64\vrstartup.exe"
-        }
-        pimax = @{
-            name = "Pimax"
-            path = "%ProgramFiles%\Pimax\PimaxClient\pimaxui\PimaxClient.exe"
-        }
     }
 }
 
+# Helper to set/add properties safely on PSCustomObject or IDictionary
+function Set-ConfigValue {
+    param($obj, [string]$name, $value)
+    if ($obj -is [System.Collections.IDictionary]) {
+        $obj[$name] = $value
+    } elseif ($obj -is [pscustomobject]) {
+        if ($obj.PSObject.Properties[$name]) {
+            $obj.$name = $value
+        } else {
+            $obj | Add-Member -NotePropertyName $name -NotePropertyValue $value -Force
+        }
+    } else {
+        $tmp = @{}
+        $tmp[$name] = $value
+        return $tmp
+    }
+    return $obj
+}
+
+# Apply defaults without removing custom fields
+$configGlobal.version = $defaultGlobal.version
+$configGlobal.description = $defaultGlobal.description
+
+$needsPathsReset = (-not $configGlobal.paths) -or ($configGlobal.paths -isnot [pscustomobject] -and $configGlobal.paths -isnot [System.Collections.IDictionary])
+if ($needsPathsReset) {
+    $configGlobal = Set-ConfigValue -obj $configGlobal -name 'paths' -value @{}
+}
+foreach ($k in $defaultGlobal.paths.Keys) {
+    $configGlobal.paths = Set-ConfigValue -obj $configGlobal.paths -name $k -value $defaultGlobal.paths.$k
+}
+
+$needsVrReset = (-not $configGlobal.vr) -or ($configGlobal.vr -isnot [pscustomobject] -and $configGlobal.vr -isnot [System.Collections.IDictionary])
+if ($needsVrReset) {
+    $configGlobal = Set-ConfigValue -obj $configGlobal -name 'vr' -value @{}
+}
+foreach ($k in $defaultGlobal.vr.Keys) {
+    $configGlobal.vr = Set-ConfigValue -obj $configGlobal.vr -name $k -value $defaultGlobal.vr.$k
+}
+
+
+
+# Remove deprecated keys (ensure they do not exist)
+if ($configGlobal.paths) {
+    if ($configGlobal.paths -is [System.Collections.IDictionary]) {
+        foreach ($dep in @('pimax')) { if ($configGlobal.paths.Contains($dep)) { $configGlobal.paths.Remove($dep) } }
+    } else {
+        foreach ($dep in @('pimax')) { if ($configGlobal.paths.PSObject.Properties[$dep]) { $null = $configGlobal.paths.PSObject.Properties.Remove($dep) } }
+    }
+}
+if ($configGlobal.vr) {
+    if ($configGlobal.vr -is [System.Collections.IDictionary]) {
+        foreach ($dep in @('hardware')) { if ($configGlobal.vr.Contains($dep)) { $configGlobal.vr.Remove($dep) } }
+    } else {
+        foreach ($dep in @('hardware')) { if ($configGlobal.vr.PSObject.Properties[$dep]) { $null = $configGlobal.vr.PSObject.Properties.Remove($dep) } }
+    }
+}
+
+# Remove vrHeadsets entirely (deprecated structure)
+if ($configGlobal.PSObject.Properties['vrHeadsets']) { $null = $configGlobal.PSObject.Properties.Remove('vrHeadsets') }
+elseif ($configGlobal -is [System.Collections.IDictionary] -and $configGlobal.Contains('vrHeadsets')) { $configGlobal.Remove('vrHeadsets') }
+
 if ($WhatIf) {
-    Write-Host "  [WHATIF] Would restore config-global.json" -ForegroundColor Gray
+    Write-Host "  [WHATIF] Would restore config-global.json (values only)" -ForegroundColor Gray
 } else {
-    $configGlobalDefaults | ConvertTo-Json -Depth 10 | Set-Content -Path "config-global.json" -Encoding UTF8
-    Write-Host "  ✓ Restored config-global.json" -ForegroundColor Green
+    $configGlobal | ConvertTo-Json -Depth 10 | Set-Content -Path $configGlobalPath -Encoding UTF8
+    Write-Host "  ✓ Restored config-global.json (values updated, structure preserved)" -ForegroundColor Green
 }
 
 # ============================================
@@ -122,9 +184,27 @@ if ($WhatIf) {
 # CONFIG-TESTS.JSON - Default Test Settings
 # ============================================
 
-Write-Host "Restoring config-tests.json to defaults..." -ForegroundColor Yellow
+Write-Host "Restoring config-tests.json to defaults (preserve structure)..." -ForegroundColor Yellow
 
-$configTestsDefaults = @{
+$configTestsPath = "config-tests.json"
+$configTests = $null
+try {
+    if (Test-Path $configTestsPath) {
+        $configTests = Get-Content -Path $configTestsPath -Raw | ConvertFrom-Json
+    }
+} catch {}
+
+if (-not $configTests) {
+    $configTests = [ordered]@{
+        version = "1.0.0"
+        description = "DCS-Max Benchmark Testing Configuration - Test parameters, timing, and performance analysis. Global paths/VR in config-global.json"
+        testConfiguration = @{}
+        timing = @{}
+        testsToRun = @()
+    }
+}
+
+$defaultTests = @{
     version = "1.0.0"
     description = "DCS-Max Benchmark Testing Configuration - Test parameters, timing, and performance analysis. Global paths/VR in config-global.json"
     testConfiguration = @{
@@ -141,40 +221,59 @@ $configTestsDefaults = @{
         capFrameXWrite = 5000
         missionRestart = 30000
     }
-    testsToRun = @(
-        @{
-            setting = "AA"
-            values = @("DLAA", "MSAA")
-            enabled = $false
-        }
-        @{
-            setting = "MSAA"
-            values = @(0, 1, 2, 3, 4)
-            enabled = $false
-        }
-        @{
-            setting = "textures"
-            values = @(0, 2)
-            enabled = $false
-        }
-        @{
-            setting = "shadows"
-            values = @(1, 3)
-            enabled = $false
-        }
-        @{
-            setting = "Upscaling"
-            values = @("DLSS", "FSR", "OFF")
-            enabled = $false
-        }
-    )
 }
 
+$configTests.version = $defaultTests.version
+$configTests.description = $defaultTests.description
+
+if (-not $configTests.testConfiguration -or ($configTests.testConfiguration -isnot [pscustomobject] -and $configTests.testConfiguration -isnot [System.Collections.IDictionary])) {
+    $configTests.testConfiguration = @{}
+}
+foreach ($k in $defaultTests.testConfiguration.Keys) {
+    $configTests.testConfiguration = Set-ConfigValue -obj $configTests.testConfiguration -name $k -value $defaultTests.testConfiguration.$k
+}
+
+if (-not $configTests.timing -or ($configTests.timing -isnot [pscustomobject] -and $configTests.timing -isnot [System.Collections.IDictionary])) {
+    $configTests.timing = @{}
+}
+foreach ($k in $defaultTests.timing.Keys) {
+    $configTests.timing = Set-ConfigValue -obj $configTests.timing -name $k -value $defaultTests.timing.$k
+}
+
+# Normalize testsToRun: update defaults, preserve extras
+$existing = @{}
+foreach ($item in $configTests.testsToRun) {
+    if ($item.setting) { $existing[$item.setting] = $item }
+}
+
+$updatedList = @()
+foreach ($def in $defaultTests.testsToRun) {
+    if ($existing.ContainsKey($def.setting)) {
+        $entry = $existing[$def.setting]
+        $entry.values = $def.values
+        $entry.enabled = $def.enabled
+        $updatedList += $entry
+    } else {
+        $updatedList += [pscustomobject]$def
+    }
+}
+
+# Append any custom tests not in defaults
+foreach ($key in $existing.Keys) {
+    if (-not ($defaultTests.testsToRun.setting -contains $key)) {
+        $updatedList += $existing[$key]
+    }
+}
+if (-not $configTests.testsToRun -or ($configTests.testsToRun -isnot [System.Collections.IEnumerable])) {
+    $configTests = Set-ConfigValue -obj $configTests -name 'testsToRun' -value @()
+}
+$configTests = Set-ConfigValue -obj $configTests -name 'testsToRun' -value $updatedList
+
 if ($WhatIf) {
-    Write-Host "  [WHATIF] Would restore config-tests.json" -ForegroundColor Gray
+    Write-Host "  [WHATIF] Would restore config-tests.json (values only)" -ForegroundColor Gray
 } else {
-    $configTestsDefaults | ConvertTo-Json -Depth 10 | Set-Content -Path "config-tests.json" -Encoding UTF8
-    Write-Host "  ✓ Restored config-tests.json" -ForegroundColor Green
+    $configTests | ConvertTo-Json -Depth 10 | Set-Content -Path $configTestsPath -Encoding UTF8
+    Write-Host "  ✓ Restored config-tests.json (values updated, structure preserved)" -ForegroundColor Green
 }
 
 # ============================================

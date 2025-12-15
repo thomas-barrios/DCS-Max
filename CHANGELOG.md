@@ -1,5 +1,19 @@
 # Changelog
 
+  15 dec 2025
+### [DCS-Max 1.3.3](https://github.com/thomas-barrios/dcs-max) - Path SSoT (Single Source of Truth)
+
+**Bug Fixes:**
+- Backup: stopped appending an extra `\\DCS` to `paths.savedGamesPath`; now consumes the configured path verbatim.
+- Restore: generalized backup search patterns to match both `DCS` and `DCS.openbeta` directories.
+
+**Improvements:**
+- PathResolver: reads `paths.savedGamesPath` from `config-global.json` first (returns its parent Saved Games base), scans drives only as fallback.
+- Defender exclusions: uses `paths.dcsInstallation` and `paths.savedGamesPath` from `config-global.json` when present, with safe defaults as fallback.
+- Documentation: added brief inline comments clarifying that `paths.savedGamesPath` should include the final DCS profile folder (e.g., `DCS` or `DCS.openbeta`).
+
+---
+
    07 dec 2025
 ### [DCS-Max 1.3.1](https://github.com/thomas-barrios/dcs-max) - Path Configuration & Verification Fixes
 

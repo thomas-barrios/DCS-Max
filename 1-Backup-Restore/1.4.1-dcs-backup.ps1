@@ -49,11 +49,9 @@ $savedGamesPath = if (Test-Path $globalConfigPath) {
     "$env:USERPROFILE\Saved Games"
 }
 
-$DCSsavedGamesPath = if ($savedGamesPath.TrimEnd('\') -match '\\DCS$') {
-    $savedGamesPath.TrimEnd('\')
-} else {
-    Join-Path $savedGamesPath 'DCS'
-}
+# Use the savedGamesPath from config-global.json as-is (single source of truth)
+# Note: value must include the final DCS profile folder name (e.g., 'DCS' or 'DCS.openbeta').
+$DCSsavedGamesPath = $savedGamesPath.TrimEnd('\\')
 
 # Normalize to ensure path points to the DCS folder
 # (Removed: rely on user-provided savedGamesPath)

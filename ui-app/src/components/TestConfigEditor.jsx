@@ -536,46 +536,6 @@ function ConfigurationPanel({ config, onUpdate }) {
   return (
     <div className="p-6 overflow-y-auto">
       <div className="max-w-2xl space-y-6">
-        {/* VR Settings */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-          <div className="px-4 py-3 bg-slate-700/50 border-b border-slate-700">
-            <h3 className="font-semibold text-white flex items-center space-x-2">
-              <Glasses className="w-4 h-4 text-blue-400" />
-              <span>VR Settings</span>
-            </h3>
-          </div>
-          <div className="p-4 space-y-4">
-            <label className="flex items-center justify-between">
-              <span className="text-slate-300">Enable VR Mode</span>
-              <button
-                onClick={() => onUpdate('vr.enabled', !config?.vr?.enabled)}
-                className={`w-12 h-6 rounded-full transition-colors ${
-                  config?.vr?.enabled ? 'bg-blue-600' : 'bg-slate-600'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${
-                  config?.vr?.enabled ? 'translate-x-6' : 'translate-x-0.5'
-                }`} />
-              </button>
-            </label>
-            
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">VR Hardware</label>
-              <select
-                value={config?.vr?.hardware || 'none'}
-                onChange={(e) => onUpdate('vr.hardware', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="Meta Quest (Link/Air Link)">Meta Quest (Link/Air Link)</option>
-                <option value="SteamVR (Vive/Index/Reverb G2)">SteamVR (Vive/Index/Reverb G2)</option>
-                <option value="Pimax">Pimax</option>
-                <option value="Varjo">Varjo</option>
-                <option value="Windows Mixed Reality">Windows Mixed Reality</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
         {/* Timing Settings */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
           <div className="px-4 py-3 bg-slate-700/50 border-b border-slate-700">

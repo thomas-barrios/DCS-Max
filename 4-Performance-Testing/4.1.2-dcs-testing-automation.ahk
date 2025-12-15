@@ -67,6 +67,18 @@ LoadJsonConfig() {
                 config["configuration"]["paths"][key] := value
             }
         }
+        ; Merge global VR config
+        if (globalConfig.Has("vr")) {
+            if (!config.Has("testConfiguration")) {
+                config["testConfiguration"] := Map()
+            }
+            if (!config["testConfiguration"].Has("vr")) {
+                config["testConfiguration"]["vr"] := Map()
+            }
+            ; Use VR settings from global config
+            config["testConfiguration"]["vr"]["enabled"] := globalConfig["vr"].Has("enabled") ? globalConfig["vr"]["enabled"] : false
+            config["testConfiguration"]["vr"]["runtimePath"] := globalConfig["vr"].Has("runtimePath") ? globalConfig["vr"]["runtimePath"] : ""
+        }
     }
     
     ; Load dev overrides if exists and merge
@@ -118,6 +130,8 @@ DryRun := GetNestedValue(config, "configuration.dryRun", false)
 
 ; VR Configuration
 EnableVR := GetNestedValue(config, "testConfiguration.vr.enabled", false)
+VRRuntimePath := GetNestedValue(config, "testConfiguration.vr.runtimePath", "")
+; Legacy support: use hardware field if runtimePath is empty
 VRhardware := GetNestedValue(config, "testConfiguration.vr.hardware", "Pimax")
 
 ; Waiting Times (in milliseconds)
@@ -201,7 +215,7 @@ if (FileExist(devConfigFile)) {
 }
 LogWithTimestamp("--- Configuration Summary ---")
 LogWithTimestamp("  DryRun: " (DryRun ? "true" : "false"))
-LogWithTimestamp("  EnableVR: " (EnableVR ? "true" : "false") " | VRhardware: " VRhardware)
+LogWithTimestamp("  EnableVR: " (EnableVR ? "true" : "false") " | VR Runtime: " (VRRuntimePath != "" ? VRRuntimePath : VRhardware))
 LogWithTimestamp("  WaitVR: " (WaitVR/1000) "s | WaitMissionReady: " (WaitMissionReady/1000) "s")
 LogWithTimestamp("  WaitBeforeRecord: " (WaitBeforeRecord/1000) "s | WaitRecordLength: " (WaitRecordLength/1000) "s")
 LogWithTimestamp("  WaitCapFrameXWrite: " (WaitCapFrameXWrite/1000) "s | WaitMissionRestart: " (WaitMissionRestart/1000) "s")
@@ -234,10 +248,9 @@ restartMap := Map()
 ; Get testsToRun array from config
 testsToRun := GetNestedValue(config, "testsToRun", [])
 
+; Allow empty testsToRun for baseline benchmark (no variations)
 if (!(testsToRun is Array) || testsToRun.Length = 0) {
-    LogWithTimestamp("ERROR: No tests configured in testsToRun array!")
-    MsgBox "No tests configured in testsToRun array!`n`nEdit ../config-tests.json to add tests.", "Config Error", 16
-    ExitApp
+    LogWithTimestamp("INFO: No tests configured in testsToRun array - running baseline benchmark with current DCS settings")
 }
 
 LogWithTimestamp("Parsing JSON Tests Configuration")
@@ -677,9 +690,7 @@ OpenCloseGraphicsSettings() {
             Sleep 10  ; Wait for settings to apply
             SendKeyWithDelay("{Esc}")
             LogWithTimestamp("Graphics settings refreshed successfully")
-            return true 
-            
-
+            return true
         } catch as e {
             LogWithTimestamp("ERROR: Failed to refresh graphics settings: " e.Message)
             return false
@@ -731,7 +742,7 @@ VerifySettingChanged(settingName, expectedValue) {
 }
 
 StartApplications() {
-    global capframex, pimax, WaitVR, logFile, notepadpp, EnableVR, VRhardware
+    global capframex, pimax, WaitVR, logFile, notepadpp, EnableVR, VRhardware, VRRuntimePath
     
     LogWithTimestamp("=== STARTING APPLICATIONS ===")
     
@@ -765,27 +776,52 @@ StartApplications() {
     
     ; VR Hardware Setup (only if VR is enabled)
     if (EnableVR) {
-        LogWithTimestamp("VR enabled - setting up " VRhardware " hardware...")
-        
-        ; Auto-detect if needed
-        detectedHardware := VRhardware
-        if (VRhardware = "auto") {
-            detectedHardware := DetectInstalledHeadset()
-            if (!detectedHardware) {
-                LogWithTimestamp("ERROR: No VR headset detected")
-                MsgBox "No VR headset detected. Install Meta Quest, HTC Vive, or Pimax.", "Error", 16
+        ; Use runtime path from config if available
+        if (VRRuntimePath != "" && FileExist(VRRuntimePath)) {
+            LogWithTimestamp("VR enabled - using runtime: " VRRuntimePath)
+            exePath := VRRuntimePath
+            
+            ; Check if already running by process name
+            SplitPath exePath, &exeName
+            if (ProcessExist(exeName)) {
+                LogWithTimestamp("VR runtime already running, skipping launch...")
+                Sleep 2000
+            } else {
+                LogWithTimestamp("Starting VR runtime...")
+                try {
+                    Run exePath
+                    LogWithTimestamp("VR runtime started: " exePath)
+                    LogWithTimestamp("Waiting " (WaitVR/1000) " seconds for VR initialization...")
+                    Sleep WaitVR
+                } catch as e {
+                    LogWithTimestamp("ERROR: Failed to start VR runtime: " e.Message)
+                    MsgBox "Failed to start VR runtime: " e.Message, "Error", 16
+                    ExitApp
+                }
+            }
+        } else if (VRhardware != "") {
+            ; Legacy path: use hardware name
+            LogWithTimestamp("VR enabled - setting up " VRhardware " hardware...")
+            
+            ; Auto-detect if needed
+            detectedHardware := VRhardware
+            if (VRhardware = "auto") {
+                detectedHardware := DetectInstalledHeadset()
+                if (!detectedHardware) {
+                    LogWithTimestamp("ERROR: No VR headset detected")
+                    MsgBox "No VR headset detected. Install Meta Quest, HTC Vive, or Pimax.", "Error", 16
+                    ExitApp
+                }
+                LogWithTimestamp("Auto-detected VR hardware: " detectedHardware)
+            }
+            
+            ; Get headset path
+            exePath := GetHeadsetPath(detectedHardware)
+            if (!exePath) {
+                LogWithTimestamp("ERROR: " detectedHardware " not found")
+                MsgBox "VR hardware not found: " detectedHardware, "Error", 16
                 ExitApp
             }
-            LogWithTimestamp("Auto-detected VR hardware: " detectedHardware)
-        }
-        
-        ; Get headset path
-        exePath := GetHeadsetPath(detectedHardware)
-        if (!exePath) {
-            LogWithTimestamp("ERROR: " detectedHardware " not found")
-            MsgBox "VR hardware not found: " detectedHardware, "Error", 16
-            ExitApp
-        }
         
         ; Check if already running
         if (CheckVRRunning(detectedHardware)) {
@@ -813,7 +849,7 @@ StartApplications() {
     } else {
         LogWithTimestamp("VR disabled - skipping VR hardware setup")
     }
-}
+}}
 
 StartDCS() {
     global dcsExe, mission, WaitMissionReady, DryRun, HeadlessMode

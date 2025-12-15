@@ -87,6 +87,7 @@ function App() {
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
                 v1.3.2
+
               </button>
             </div>
           </div>

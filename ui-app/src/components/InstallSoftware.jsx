@@ -63,10 +63,9 @@ function InstallSoftware() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [output, setOutput] = useState('');
   
-  // VR Detection state
-  const [detectedVRHeadsets, setDetectedVRHeadsets] = useState([]);
-  const [selectedVRHeadset, setSelectedVRHeadset] = useState('none');
-  const [vrPaths, setVrPaths] = useState({});
+  // VR Configuration state (simplified)
+  const [vrEnabled, setVrEnabled] = useState(false);
+  const [vrRuntimePath, setVrRuntimePath] = useState('');
   const [vrDetecting, setVrDetecting] = useState(false);
   
   // Path configuration state
@@ -75,7 +74,6 @@ function InstallSoftware() {
     savedGamesPath: '',
     capframexPath: '',
     autoHotkeyPath: '',
-    pimaxPath: '',
     notepadppPath: '',
     benchmarkMissionPath: ''
   });
@@ -124,15 +122,15 @@ function InstallSoftware() {
     const newSettings = { ...settings };
     const sources = {};
 
+    // Helper to check if a path value is a placeholder (not a real path)
+    const isPlaceholder = (value) => !value || value === 'auto' || value === '' || value.toLowerCase() === 'auto';
+
     // Load paths from global config and test config
     try {
       // Load global config for paths
       const globalResult = await window.dcsMax.readJsonConfig(GLOBAL_CONFIG_PATH);
       if (globalResult.success && globalResult.data?.paths) {
         const paths = globalResult.data.paths;
-
-        // Helper to check if a path value is a placeholder (not a real path)
-        const isPlaceholder = (value) => !value || value === 'auto' || value === '' || value.toLowerCase() === 'auto';
 
         // Map JSON keys to settings keys (ignore placeholder values)
         if (paths.dcsExe && !isPlaceholder(paths.dcsExe)) {
@@ -163,7 +161,19 @@ function InstallSoftware() {
         }
       }
 
-      // Load test config for mission and VR settings
+      // Load VR settings from global config
+      if (globalResult.success && globalResult.data?.vr) {
+        const vr = globalResult.data.vr;
+        if (vr.enabled && vr.runtimePath && !isPlaceholder(vr.runtimePath)) {
+          setVrEnabled(true);
+          setVrRuntimePath(vr.runtimePath);
+        } else {
+          setVrEnabled(false);
+          setVrRuntimePath('');
+        }
+      }
+
+      // Load test config for mission settings
       const testResult = await window.dcsMax.readJsonConfig(JSON_CONFIG_PATH);
       if (testResult.success && testResult.data?.testConfiguration) {
         const testConfig = testResult.data.testConfiguration;
@@ -172,15 +182,6 @@ function InstallSoftware() {
         if (testConfig.mission && !isPlaceholder(testConfig.mission)) {
           newSettings.benchmarkMissionPath = testConfig.mission;
           sources.benchmarkMissionPath = 'config';
-        }
-
-        // Load VR settings
-        if (testConfig.vr) {
-          if (testConfig.vr.enabled) {
-            setSelectedVRHeadset(testConfig.vr.hardware || 'none');
-          } else {
-            setSelectedVRHeadset('none');
-          }
         }
       }
     } catch (err) {
@@ -236,30 +237,6 @@ function InstallSoftware() {
         if (notepadpp?.path) {
           newSettings.notepadppPath = notepadpp.path;
           sources.notepadppPath = notepadpp.found ? `detected (${notepadpp.source})` : 'default';
-        }
-
-        // Pimax (optional)
-        const pimax = pathsResult.paths.pimaxPath;
-        if (pimax?.path) {
-          newSettings.pimaxPath = pimax.path;
-          sources.pimaxPath = pimax.found ? `detected (${pimax.source})` : 'default';
-        }
-
-        // Auto-detect VR headsets on initialization
-        if (pathsResult.paths.vrHeadsets && pathsResult.paths.vrPaths) {
-          const headsets = pathsResult.paths.vrHeadsets;
-          const paths = pathsResult.paths.vrPaths;
-          setDetectedVRHeadsets(headsets);
-          setVrPaths(paths);
-          
-          // Auto-select first detected headset and populate path
-          if (headsets.length > 0) {
-            setSelectedVRHeadset(headsets[0]);
-            if (paths[headsets[0]]) {
-              newSettings.pimaxPath = paths[headsets[0]];
-              sources.pimaxPath = 'auto-detected';
-            }
-          }
         }
       } else {
         for (const software of requiredSoftware) {
@@ -363,64 +340,81 @@ function InstallSoftware() {
     }
   };
 
-  const detectVRHeadset = async () => {
+  const detectVR = async () => {
     setVrDetecting(true);
     try {
-      const result = await window.dcsMax.detectPaths();
-      console.log('VR Detection Result:', result);
-      if (result.success && result.paths) {
-        const headsets = result.paths.vrHeadsets || [];
-        const paths = result.paths.vrPaths || {};
-        
-        console.log('Detected Headsets:', headsets);
-        console.log('VR Paths:', paths);
-        
-        setDetectedVRHeadsets(headsets);
-        setVrPaths(paths);
-        
-        // Auto-select first detected headset
-        if (headsets.length > 0) {
-          setSelectedVRHeadset(headsets[0]);
-          // Auto-populate VR Client path if detected
-          if (paths[headsets[0]]) {
-            const newSettings = { ...settings, pimaxPath: paths[headsets[0]] };
-            setSettings(newSettings);
-            setPathSources(prev => ({ ...prev, pimaxPath: 'auto-detected' }));
-            setTimeout(() => verifySinglePath('pimaxPath', paths[headsets[0]]), 100);
-            
-            // Auto-save with VR enabled
-            setTimeout(() => autoSavePathsToJson(newSettings), 500);
-          }
-        } else {
-          setSelectedVRHeadset('none');
+      // Known VR runtime paths to check
+      const knownVRPaths = [
+        { name: 'Meta Quest', path: 'C:\\Program Files\\Oculus\\Support\\oculus-client\\OculusClient.exe' },
+        { name: 'SteamVR', path: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\bin\\win64\\vrstartup.exe' },
+        { name: 'Pimax', path: 'C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe' },
+        { name: 'HTC Vive', path: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\bin\\win64\\vrstartup.exe' },
+        { name: 'Varjo', path: 'C:\\Program Files\\Varjo\\Varjo Base\\VarjoBase.exe' }
+      ];
+
+      // Check each path using file verification
+      let foundPath = '';
+      for (const vr of knownVRPaths) {
+        const status = await verifyPath(vr.path, false, false, projectRoot);
+        if (status === 'valid') {
+          foundPath = vr.path;
+          break;
         }
+      }
+
+      if (foundPath) {
+        setVrRuntimePath(foundPath);
+        setVrEnabled(true);
+        // Save to config
+        await saveVRConfig(true, foundPath);
+        alert(`VR runtime detected: ${foundPath}`);
+      } else {
+        setVrEnabled(false);
+        setVrRuntimePath('');
+        alert('No VR runtime detected. You can manually enter the path below.');
       }
     } catch (error) {
       console.error('VR detection error:', error);
-      setDetectedVRHeadsets([]);
-      setSelectedVRHeadset('none');
+      alert('Error detecting VR: ' + error.message);
     }
     setVrDetecting(false);
   };
 
-  const handleVRHeadsetChange = (headset) => {
-    setSelectedVRHeadset(headset);
-    
-    // Auto-populate path for known headsets
-    if (headset !== 'none' && vrPaths[headset]) {
-      const newSettings = { ...settings, pimaxPath: vrPaths[headset] };
-      setSettings(newSettings);
-      setPathSources(prev => ({ ...prev, pimaxPath: 'auto-populated' }));
-      setTimeout(() => verifySinglePath('pimaxPath', vrPaths[headset]), 100);
-      // Auto-save with VR enabled for this headset
-      setTimeout(() => autoSavePathsToJson(newSettings), 500);
-    } else if (headset === 'none') {
-      // Clear VR client path and disable VR if "None" is selected
-      const newSettings = { ...settings, pimaxPath: '' };
-      setSettings(newSettings);
-      setPathStatus(prev => ({ ...prev, pimaxPath: 'empty' }));
-      // Auto-save with VR disabled
-      setTimeout(() => autoSavePathsToJson(newSettings), 500);
+  const handleVRPathChange = async (path) => {
+    setVrRuntimePath(path);
+    // Validate the path
+    if (path) {
+      const status = await verifyPath(path, false, false, projectRoot);
+      if (status === 'valid') {
+        setVrEnabled(true);
+      } else {
+        setVrEnabled(false);
+      }
+    } else {
+      setVrEnabled(false);
+    }
+  };
+
+  const saveVRConfig = async (enabled, runtimePath) => {
+    try {
+      const result = await window.dcsMax.readJsonConfig(GLOBAL_CONFIG_PATH);
+      if (!result.success) {
+        throw new Error('Failed to read global config');
+      }
+
+      const config = result.data;
+      if (!config.vr) config.vr = {};
+      
+      config.vr.enabled = enabled;
+      config.vr.runtimePath = runtimePath || '';
+
+      const writeResult = await window.dcsMax.writeJsonConfig(GLOBAL_CONFIG_PATH, config);
+      if (!writeResult.success) {
+        throw new Error('Failed to save VR config');
+      }
+    } catch (err) {
+      console.error('Error saving VR config:', err);
+      throw err;
     }
   };
 
@@ -497,10 +491,6 @@ function InstallSoftware() {
       if (settings.notepadppPath) {
         globalConfig.paths.notepadpp = settings.notepadppPath;
       }
-      if (settings.pimaxPath) {
-        globalConfig.paths.pimax = settings.pimaxPath;
-      }
-
       // Write updated global config
       const globalWriteResult = await window.dcsMax.writeJsonConfig(GLOBAL_CONFIG_PATH, globalConfig);
       if (!globalWriteResult.success) {
@@ -525,21 +515,12 @@ function InstallSoftware() {
         testConfig.testConfiguration.mission = filename;
       }
 
-      // Save VR configuration based on selected headset
-      if (!testConfig.testConfiguration.vr) testConfig.testConfiguration.vr = {};
-
-      if (selectedVRHeadset === 'none' || !selectedVRHeadset) {
-        // No VR selected - disable VR
-        testConfig.testConfiguration.vr.enabled = false;
-        testConfig.testConfiguration.vr.hardware = 'none';
-      } else {
-        // VR headset selected - enable and set hardware
-        testConfig.testConfiguration.vr.enabled = true;
-        testConfig.testConfiguration.vr.hardware = selectedVRHeadset;
-      }
-
       // Write updated test config
       const testWriteResult = await window.dcsMax.writeJsonConfig(JSON_CONFIG_PATH, testConfig);
+      
+      // Save VR configuration to global config
+      await saveVRConfig(vrEnabled, vrRuntimePath);
+      
       if (testWriteResult.success) {
         alert('Configuration saved successfully!');
       } else {
@@ -695,28 +676,12 @@ function InstallSoftware() {
       if (currentSettings.notepadppPath) {
         config.configuration.paths.notepadpp = currentSettings.notepadppPath;
       }
-      if (currentSettings.pimaxPath) {
-        config.configuration.paths.pimax = currentSettings.pimaxPath;
-        config.configuration.paths.vrClient = currentSettings.pimaxPath;
-      }
       if (currentSettings.benchmarkMissionPath) {
         const filename = currentSettings.benchmarkMissionPath.split(/[\\\/]/).pop();
         config.configuration.mission = filename;
       }
       
-      // AUTO-CONFIGURE VR BASED ON SELECTED HEADSET
-      // Use the currently selected VR headset from state
-      if (!config.configuration.vr) config.configuration.vr = {};
-      
-      if (selectedVRHeadset === 'none' || !selectedVRHeadset) {
-        // No VR selected - disable VR
-        config.configuration.vr.enabled = false;
-        config.configuration.vr.hardware = 'none';
-      } else {
-        // VR headset selected - enable and set hardware
-        config.configuration.vr.enabled = true;
-        config.configuration.vr.hardware = selectedVRHeadset;
-      }
+      // VR config is now saved separately via saveVRConfig
       
       await window.dcsMax.writeJsonConfig(JSON_CONFIG_PATH, config);
       setOutput(prev => prev + `✓ Configuration saved.\n`);
@@ -1116,95 +1081,82 @@ function InstallSoftware() {
           </div>
         </div>
 
-        {/* VR Headset Detection */}
+        {/* VR Headset Configuration */}
         <div className="mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white flex items-center">
                 <Download className="w-5 h-5 mr-2 text-cyan-400" />
-                VR Headset Detection (Optional)
+                VR Headset Configuration (Optional)
               </h3>
               <button
-                onClick={detectVRHeadset}
+                onClick={detectVR}
                 disabled={vrDetecting}
                 className="flex items-center space-x-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 rounded transition-colors text-sm"
-                title="Scan for installed VR headsets"
+                title="Auto-detect VR runtime"
               >
                 <Scan className={`w-4 h-4 ${vrDetecting ? 'animate-pulse' : ''}`} />
                 <span>{vrDetecting ? 'Detecting...' : 'Detect VR'}</span>
               </button>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  VR Headset
-                </label>
-                <select
-                  value={selectedVRHeadset}
-                  onChange={(e) => handleVRHeadsetChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-700 text-slate-200 rounded border border-slate-600 focus:border-cyan-500 focus:outline-none text-sm"
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-slate-400 mb-2">
+                VR Headset Runtime Path
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={vrRuntimePath}
+                  onChange={(e) => handleVRPathChange(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-slate-700 text-slate-200 rounded border border-slate-600 focus:border-cyan-500 focus:outline-none text-sm"
+                  placeholder="Path to VR runtime executable (e.g., OculusClient.exe, vrstartup.exe)"
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      const filter = 'Executable Files (*.exe)|*.exe|All Files (*.*)|*.*';
+                      const result = await window.dcsMax.browseForFile('Select VR Runtime Executable', filter);
+                      if (result.success && result.path) {
+                        handleVRPathChange(result.path);
+                      }
+                    } catch (err) {
+                      console.error('Browse error:', err);
+                    }
+                  }}
+                  className="px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded transition-colors"
+                  title="Browse..."
                 >
-                  <option value="none">None (2D mode)</option>
-                  {detectedVRHeadsets.map((headset) => (
-                    <option key={headset} value={headset}>{headset}</option>
-                  ))}
-                  <option value="other">Other VR Client (Custom)</option>
-                </select>
-                {detectedVRHeadsets.length > 0 && (
-                  <p className="text-xs text-green-400 mt-2">
-                    ✓ Found {detectedVRHeadsets.length} VR client{detectedVRHeadsets.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-                {detectedVRHeadsets.length === 0 && selectedVRHeadset === 'none' && (
-                  <p className="text-xs text-slate-400 mt-2">
-                    No VR headsets detected. DCS will run in 2D mode.
-                  </p>
-                )}
+                  <FolderOpen className="w-4 h-4" />
+                </button>
               </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  VR Client Path
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={settings.pimaxPath}
-                    onChange={(e) => {
-                      setSettings({ ...settings, pimaxPath: e.target.value });
-                      setPathSources(prev => ({ ...prev, pimaxPath: 'manual' }));
-                      setPathStatus(prev => ({ ...prev, pimaxPath: 'unknown' }));
-                    }}
-                    onBlur={(e) => verifySinglePath('pimaxPath', e.target.value)}
-                    disabled={selectedVRHeadset === 'none'}
-                    className={`flex-1 px-3 py-2 bg-slate-700 text-slate-200 rounded border text-sm focus:outline-none disabled:bg-slate-800 disabled:text-slate-500 ${
-                      selectedVRHeadset === 'none'
-                        ? 'border-slate-700'
-                        : pathStatus.pimaxPath === 'valid' 
-                          ? 'border-green-500/50 focus:border-green-500' 
-                          : pathStatus.pimaxPath === 'invalid'
-                            ? 'border-red-500/50 focus:border-red-500'
-                            : 'border-slate-600 focus:border-cyan-500'
-                    }`}
-                    placeholder="VR Client executable path"
-                  />
-                  <button
-                    onClick={() => browseForPath('pimaxPath')}
-                    disabled={selectedVRHeadset === 'none'}
-                    className="px-3 py-2 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-800 disabled:text-slate-500 rounded transition-colors"
-                    title="Browse..."
-                  >
-                    <FolderOpen className="w-4 h-4" />
-                  </button>
-                  {getPathStatusIcon('pimaxPath')}
-                </div>
-                {pathSources.pimaxPath && (
-                  <p className="text-xs text-slate-400 mt-2">
-                    Source: {pathSources.pimaxPath}
-                  </p>
-                )}
+              {vrEnabled && vrRuntimePath && (
+                <p className="text-xs text-green-400 mt-2">
+                  ✓ VR enabled: {vrRuntimePath}
+                </p>
+              )}
+              {!vrEnabled && !vrRuntimePath && (
+                <p className="text-xs text-slate-400 mt-2">
+                  No VR runtime configured. DCS will run in 2D mode.
+                </p>
+              )}
+            </div>
+
+            <div className="bg-slate-900/50 rounded p-3">
+              <p className="text-xs font-medium text-slate-300 mb-2">
+                Common VR headset runtime locations:
+              </p>
+              <div className="space-y-1 text-xs text-slate-400 font-mono">
+                <div><span className="text-slate-500">Meta Quest:</span> C:\Program Files\Oculus\Support\oculus-client\OculusClient.exe</div>
+                <div><span className="text-slate-500">SteamVR:</span> C:\Program Files (x86)\Steam\steamapps\common\SteamVR\bin\win64\vrstartup.exe</div>
+                <div><span className="text-slate-500">Pimax:</span> C:\Program Files\Pimax\PimaxClient\pimaxui\PimaxClient.exe</div>
+                <div><span className="text-slate-500">HTC Vive:</span> C:\Program Files (x86)\Steam\steamapps\common\SteamVR\bin\win64\vrstartup.exe</div>
+                <div><span className="text-slate-500">Varjo:</span> C:\Program Files\Varjo\Varjo Base\VarjoBase.exe</div>
+                <div><span className="text-slate-500">WMR/HP Reverb G2:</span> C:\Program Files\WindowsApps\Microsoft.MixedReality.Portal_*\MixedRealityPortal.exe</div>
               </div>
+              <p className="text-xs text-slate-500 mt-2 italic">
+                Tip: Copy and paste the path above, or use the Browse button to select your VR runtime executable.
+              </p>
             </div>
           </div>
         </div>
