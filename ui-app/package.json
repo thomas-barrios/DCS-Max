@@ -1,6 +1,6 @@
 {
   "name": "dcs-max-ui",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "DCS World Performance Optimization Suite - User Interface",
   "type": "module",
   "scripts": {
@@ -8,7 +8,13 @@
     "build": "vite build && node -e \"const fs = require('fs'); const path = require('path'); const src = path.join(__dirname, 'dist'); const dst = path.join(__dirname, 'web'); if(fs.existsSync(dst)) fs.rmSync(dst, {recursive:true}); fs.cpSync(src, dst, {recursive:true}); console.log('Built files copied to /web folder');\"",
     "preview": "vite preview"
   },
-  "keywords": ["dcs", "performance", "optimization", "gaming", "vr"],
+  "keywords": [
+    "dcs",
+    "performance",
+    "optimization",
+    "gaming",
+    "vr"
+  ],
   "author": "Thomas Barrios",
   "license": "MIT",
   "devDependencies": {
