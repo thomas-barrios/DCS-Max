@@ -1,5 +1,36 @@
 # Changelog
 
+  16 dec 2025
+### [DCS-Max 1.3.4](https://github.com/thomas-barrios/dcs-max) - Critical Bug Fixes & Configuration Validation
+
+**Bug Fixes:**
+- **CRITICAL**: Fixed projectRoot detection failure in Program Files installations
+  - Changed detection method from looking for `Backups` folder to `config-global.json`
+  - Prevents "config file not found" errors when installed to Program Files
+  - Resolves reported issue where app looked in wrong subfolder for config files
+- **CRITICAL**: Added JSON validation before saving configuration files
+  - Prevents saving corrupted JSON with syntax errors (extra quotes, missing commas, etc.)
+  - All config save operations now validate before writing to disk
+  - User-friendly error messages show specific JSON syntax problems
+- Fixed: Better error messages for configuration loading failures
+  - Now shows full expected file path, project root location, and specific error details
+  - Helps diagnose path issues vs JSON syntax issues vs installation problems
+
+**Improvements:**
+- Enhanced error reporting in both C# backend and React frontend
+- ReadJsonConfig now returns detailed error information including file paths
+- WriteJsonConfig validates JSON structure before attempting to save
+- Deprecated config files renamed to prevent user confusion:
+  - `testing-configuration.json` → `_DEPRECATED_testing-configuration.json`
+  - `testing-configuration.dev.json` → `_DEPRECATED_testing-configuration.dev.json`
+
+**Technical Details:**
+- All `writeJsonConfig` calls now include `JSON.parse(JSON.stringify(config))` validation
+- C# backend validates projectRoot before file operations
+- Separate error handling for JSON parse errors vs file I/O errors
+
+---
+
   15 dec 2025
 ### [DCS-Max 1.3.3](https://github.com/thomas-barrios/dcs-max) - Path SSoT (Single Source of Truth)
 

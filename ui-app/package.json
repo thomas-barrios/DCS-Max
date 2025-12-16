@@ -1,6 +1,6 @@
 {
   "name": "dcs-max-ui",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "DCS World Performance Optimization Suite - User Interface",
   "type": "module",
   "scripts": {

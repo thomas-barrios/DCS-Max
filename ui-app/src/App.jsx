@@ -86,7 +86,7 @@ function App() {
                 onClick={() => window.dcsMax?.openExternal?.('https://github.com/thomas-barrios/DCS-Max/blob/master/README.md')}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
-                v1.3.3
+                v1.3.4
 
               </button>
             </div>
