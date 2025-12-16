@@ -844,6 +844,15 @@ function PerformanceTesting() {
     
     setSaving(true);
     try {
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(config));
+      } catch (jsonErr) {
+        console.error('Invalid configuration data:', jsonErr);
+        setSaving(false);
+        return;
+      }
+      
       const result = await window.dcsMax.writeJsonConfig(
         'config-tests.json',
         config
@@ -1686,6 +1695,15 @@ function RunTestsTab({
                             const globalCfg = result.data || {};
                             if (!globalCfg.vr) globalCfg.vr = {};
                             globalCfg.vr.enabled = false;
+                            
+                            // Validate JSON before saving
+                            try {
+                              JSON.parse(JSON.stringify(globalCfg));
+                            } catch (jsonErr) {
+                              console.error('Invalid configuration data:', jsonErr);
+                              return;
+                            }
+                            
                             await window.dcsMax.writeJsonConfig('config-global.json', globalCfg);
                             setGlobalConfig(globalCfg);
                           }
@@ -1713,6 +1731,15 @@ function RunTestsTab({
                             const globalCfg = result.data || {};
                             if (!globalCfg.vr) globalCfg.vr = {};
                             globalCfg.vr.enabled = true;
+                            
+                            // Validate JSON before saving
+                            try {
+                              JSON.parse(JSON.stringify(globalCfg));
+                            } catch (jsonErr) {
+                              console.error('Invalid configuration data:', jsonErr);
+                              return;
+                            }
+                            
                             await window.dcsMax.writeJsonConfig('config-global.json', globalCfg);
                             setGlobalConfig(globalCfg);
                           }

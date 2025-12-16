@@ -125,21 +125,27 @@ namespace DcsMaxLauncher
             // The exe is in ui-app\bin\, so we need to go up 2 levels to reach DCS-Max root
             projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."));
             
-            // Verify we found the right folder by checking for Backups directory
-            if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
+            // Verify we found the right folder by checking for config-global.json (more reliable than Backups folder)
+            if (!File.Exists(Path.Combine(projectRoot, "config-global.json")))
             {
                 // Try going up 3 levels (for bin\Debug\net48 or similar)
                 projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
             }
-            if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
+            if (!File.Exists(Path.Combine(projectRoot, "config-global.json")))
             {
                 // Try going up 4 levels
                 projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
             }
-            if (!Directory.Exists(Path.Combine(projectRoot, "Backups")))
+            if (!File.Exists(Path.Combine(projectRoot, "config-global.json")))
             {
                 // Fallback: maybe running from project folder directly
                 projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+            }
+            
+            // Final validation - log warning if config file still not found
+            if (!File.Exists(Path.Combine(projectRoot, "config-global.json")))
+            {
+                System.Diagnostics.Debug.WriteLine($"WARNING: config-global.json not found. ProjectRoot: {projectRoot}");
             }
         }
 
@@ -605,18 +611,43 @@ namespace DcsMaxLauncher
         {
             try
             {
+                // Validate projectRoot
+                if (string.IsNullOrEmpty(projectRoot))
+                {
+                    return new { success = false, error = "Project root not initialized" };
+                }
+                
                 string fullPath = Path.Combine(projectRoot, jsonPath);
+                
                 if (!File.Exists(fullPath))
                 {
-                    return new { success = false, error = "File not found: " + jsonPath };
+                    return new { 
+                        success = false, 
+                        error = $"File not found: {jsonPath}\n\nExpected location:\n{fullPath}\n\nProject root: {projectRoot}" 
+                    };
                 }
+                
                 string content = await Task.Run(delegate { return File.ReadAllText(fullPath); });
-                var data = JObject.Parse(content);
-                return new { success = true, content = content, data = data };
+                
+                try
+                {
+                    var data = JObject.Parse(content);
+                    return new { success = true, content = content, data = data };
+                }
+                catch (JsonReaderException jex)
+                {
+                    return new { 
+                        success = false, 
+                        error = $"Invalid JSON in {jsonPath}\n\nError: {jex.Message}\n\nLocation: {fullPath}" 
+                    };
+                }
             }
             catch (Exception ex)
             {
-                return new { success = false, error = ex.Message };
+                return new { 
+                    success = false, 
+                    error = $"Error reading {jsonPath}: {ex.Message}\n\nProject root: {projectRoot}" 
+                };
             }
         }
 
@@ -624,16 +655,40 @@ namespace DcsMaxLauncher
         {
             try
             {
+                // Validate projectRoot
+                if (string.IsNullOrEmpty(projectRoot))
+                {
+                    return new { success = false, error = "Project root not initialized" };
+                }
+                
                 string fullPath = Path.Combine(projectRoot, jsonPath);
+                
+                // Validate JSON before writing
+                JObject obj;
+                try
+                {
+                    obj = JObject.Parse(jsonContent);
+                }
+                catch (JsonReaderException jex)
+                {
+                    return new { 
+                        success = false, 
+                        error = $"Invalid JSON syntax: {jex.Message}\n\nPlease check for extra quotes, missing commas, or other syntax errors." 
+                    };
+                }
+                
                 // Format JSON nicely
-                var obj = JObject.Parse(jsonContent);
                 string formatted = obj.ToString(Newtonsoft.Json.Formatting.Indented);
                 await Task.Run(delegate { File.WriteAllText(fullPath, formatted); });
+                
                 return new { success = true };
             }
             catch (Exception ex)
             {
-                return new { success = false, error = ex.Message };
+                return new { 
+                    success = false, 
+                    error = $"Error writing {jsonPath}: {ex.Message}" 
+                };
             }
         }
 

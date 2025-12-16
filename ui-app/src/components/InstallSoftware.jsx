@@ -408,6 +408,13 @@ function InstallSoftware() {
       config.vr.enabled = enabled;
       config.vr.runtimePath = runtimePath || '';
 
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(config));
+      } catch (jsonErr) {
+        throw new Error('Invalid JSON structure: ' + jsonErr.message);
+      }
+
       const writeResult = await window.dcsMax.writeJsonConfig(GLOBAL_CONFIG_PATH, config);
       if (!writeResult.success) {
         throw new Error('Failed to save VR config');
@@ -491,6 +498,15 @@ function InstallSoftware() {
       if (settings.notepadppPath) {
         globalConfig.paths.notepadpp = settings.notepadppPath;
       }
+      
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(globalConfig));
+      } catch (jsonErr) {
+        alert('Invalid configuration data: ' + jsonErr.message);
+        return;
+      }
+      
       // Write updated global config
       const globalWriteResult = await window.dcsMax.writeJsonConfig(GLOBAL_CONFIG_PATH, globalConfig);
       if (!globalWriteResult.success) {
@@ -513,6 +529,14 @@ function InstallSoftware() {
         // Store only the filename - mission is relative to benchmark-missions folder
         const filename = settings.benchmarkMissionPath.split(/[\\\/]/).pop();
         testConfig.testConfiguration.mission = filename;
+      }
+
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(testConfig));
+      } catch (jsonErr) {
+        alert('Invalid test configuration data: ' + jsonErr.message);
+        return;
       }
 
       // Write updated test config
@@ -682,6 +706,15 @@ function InstallSoftware() {
       }
       
       // VR config is now saved separately via saveVRConfig
+      
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(config));
+      } catch (jsonErr) {
+        console.error('Invalid configuration data:', jsonErr);
+        setOutput(prev => prev + `✗ Error: Invalid configuration data\n`);
+        return;
+      }
       
       await window.dcsMax.writeJsonConfig(JSON_CONFIG_PATH, config);
       setOutput(prev => prev + `✓ Configuration saved.\n`);

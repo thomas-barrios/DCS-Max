@@ -151,6 +151,14 @@ function Benchmarking() {
 
   const handleSaveConfig = async (newConfig) => {
     try {
+      // Validate JSON before saving
+      try {
+        JSON.parse(JSON.stringify(newConfig));
+      } catch (jsonErr) {
+        alert('Invalid configuration data: ' + jsonErr.message);
+        return;
+      }
+      
       const result = await window.dcsMax.writeJsonConfig(
         'config-tests.json',
         newConfig
