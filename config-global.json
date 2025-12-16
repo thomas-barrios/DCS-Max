@@ -1,15 +1,15 @@
 {
   "paths": {
-    "dcsExe": "%ProgramFiles%\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
+    "dcsExe": "D:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
     "dcsInstallation": "%ProgramFiles%\\Eagle Dynamics\\DCS World",
-    "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
-    "notepadpp": "%ProgramFiles%\\Notepad++\\notepad++.exe",
-    "autohotkey": "%ProgramFiles%\\AutoHotkey\\v2\\AutoHotkey64.exe",
+    "savedGamesPath": "D:\\Users\\Thomas\\Saved Games\\DCS",
+    "notepadpp": "C:\\Users\\Thomas\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Notepad++.Notepad++_Microsoft.Winget.Source_8wekyb3d8bbwe\\notepad++.exe",
+    "autohotkey": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
     "capframex": "%USERPROFILE%\\AppData\\Local\\Microsoft\\WinGet\\Packages\\CXWorld.CapFrameX_Microsoft.Winget.Source_8wekyb3d8bbwe\\CapFrameX.exe",
     "capframexFolder": "%USERPROFILE%\\Documents\\CapFrameX\\Captures"
   },
   "vr": {
-    "enabled": false,
+    "enabled": true,
     "runtimePath": "C:\\Program Files\\Pimax\\PimaxClient\\pimaxui\\PimaxClient.exe"
   },
   "description": "DCS-Max Global Configuration - Paths, VR hardware, timing, shared by all scripts",

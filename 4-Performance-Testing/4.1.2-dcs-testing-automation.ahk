@@ -755,7 +755,9 @@ StartApplications() {
         }
         
         LogWithTimestamp("Starting Notepad++ in monitor mode for log...")
-        Run notepadpp ' -monitor "' logFile '"'
+        command := notepadpp ' -monitor "' logFile '"'
+        LogWithTimestamp("Launching Notepad++ with command: " command)
+        Run command
         Sleep 1000
         LogWithTimestamp("Notepad++ started successfully")
     } else {
@@ -770,6 +772,7 @@ StartApplications() {
     }
     
     LogWithTimestamp("Starting CapFrameX...")
+    LogWithTimestamp("Launching CapFrameX with command: " capframexExe)
     Run capframexExe
     Sleep 1000
     LogWithTimestamp("CapFrameX started successfully")
@@ -788,6 +791,7 @@ StartApplications() {
                 Sleep 2000
             } else {
                 LogWithTimestamp("Starting VR runtime...")
+                LogWithTimestamp("Launching VR runtime with command: " exePath)
                 try {
                     Run exePath
                     LogWithTimestamp("VR runtime started: " exePath)
@@ -801,7 +805,7 @@ StartApplications() {
             }
         } else if (VRhardware != "") {
             ; Legacy path: use hardware name
-            LogWithTimestamp("VR enabled - setting up " VRhardware " hardware...")
+            LogWithTimestamp("VR enabled - setting up VR headset hardware...")
             
             ; Auto-detect if needed
             detectedHardware := VRhardware
@@ -837,13 +841,14 @@ StartApplications() {
                 }
             }
             
-            LogWithTimestamp("Starting " detectedHardware "...")
+            LogWithTimestamp("Starting VR headset...")
+            LogWithTimestamp("Launching VR headset with command: " exePath)
             if (!StartVRHardware(detectedHardware, exePath)) {
-                LogWithTimestamp("ERROR: Failed to start " detectedHardware)
+                LogWithTimestamp("ERROR: Failed to start VR headset")
                 MsgBox "Failed to start " detectedHardware, "Error", 16
                 ExitApp
             }
-            LogWithTimestamp("Waiting " Round(WaitVR/1000) "s for " detectedHardware " to start...")
+            LogWithTimestamp("Waiting " Round(WaitVR/1000) "s for VR headset to start...")
             Sleep WaitVR
         }
     } else {
