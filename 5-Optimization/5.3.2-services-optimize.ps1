@@ -54,7 +54,6 @@ $servicesToModify = @(
     @{Id="S007"; Name="WaaSMedicSvc"; StartupType="Disabled"; Comment="Updates: Redundant repair service"},
 
     # Cloud & Microsoft Services
-    @{Id="S008"; Name="wlidsvc"; StartupType="Disabled"; Comment="MS Account: Local account used, no cloud sync needed"},
     @{Id="S009"; Name="WalletService"; StartupType="Disabled"; Comment="Wallet: Irrelevant for gaming"},
     @{Id="S010"; Name="XboxGameBar"; StartupType="Disabled"; Comment="Xbox Game Bar: From WindowsSettings section - disable to free CPU/GPU"},
     @{Id="S011"; Name="BackgroundApps"; StartupType="Disabled"; Comment="Background Apps: From WindowsSettings section - globally disable to cut resource spikes"},
