@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "CFG_DIR=D:\Users\Thomas\Saved Games\DCS\Config"
+set "CFG_DIR=D:\Users\%USERNAME%\Saved Games\DCS\Config"
 set "DEFAULT=%CFG_DIR%\_DEFAULT-2560x1440_options.lua"
 set "OPTIONS=%CFG_DIR%\options.lua"
 

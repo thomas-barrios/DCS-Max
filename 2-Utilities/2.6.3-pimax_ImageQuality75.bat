@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "CFG_DIR=C:\Users\Thomas\AppData\Local\Pimax\runtime"
+set "CFG_DIR=%USERPROFILE%\AppData\Local\Pimax\runtime"
 set "DEFAULT=%CFG_DIR%\__DEFAULT_ImageQuality75_profile.json"
 set "OPTIONS=%CFG_DIR%\profile.json"
 

@@ -103,6 +103,36 @@ if ($RestoreDestination) {
 # Note: value must include the final DCS profile folder name (e.g., 'DCS' or 'DCS.openbeta').
 $DCSsavedGamesPath = $SavedGamesPath.TrimEnd('\\')
 
+# Check if path exists, if not auto-detect on D: or C: drives
+if (-not (Test-Path $DCSsavedGamesPath -PathType Container)) {
+    Write-Host "[INFO]   Configured path not found, attempting auto-detection..." -ForegroundColor Yellow
+    
+    # Search on D: and C: drives
+    $detectedPath = $null
+    foreach ($drive in @('D:', 'C:')) {
+        $pathsToTry = @(
+            "$drive\Users\$env:USERNAME\Saved Games\DCS",
+            "$drive\Saved Games\DCS"
+        )
+        
+        foreach ($tryPath in $pathsToTry) {
+            if (Test-Path $tryPath -PathType Container) {
+                $detectedPath = $tryPath
+                Write-Host "[INFO]   Auto-detected DCS location: $detectedPath" -ForegroundColor Yellow
+                break
+            }
+        }
+        
+        if ($detectedPath) { break }
+    }
+    
+    if ($detectedPath) {
+        $DCSsavedGamesPath = $detectedPath
+    } else {
+        Write-Host "[WARN]   Could not auto-detect DCS saved games location" -ForegroundColor Yellow
+    }
+}
+
 # Restore groups with labels for output (matches backup structure)
 $RestoreGroups = @(
     @{

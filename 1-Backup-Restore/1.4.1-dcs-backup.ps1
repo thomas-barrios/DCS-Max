@@ -49,9 +49,37 @@ $savedGamesPath = if (Test-Path $globalConfigPath) {
     "$env:USERPROFILE\Saved Games"
 }
 
-# Use the savedGamesPath from config-global.json as-is (single source of truth)
-# Note: value must include the final DCS profile folder name (e.g., 'DCS' or 'DCS.openbeta').
+# Check if path exists, if not auto-detect on D: or C: drives
 $DCSsavedGamesPath = $savedGamesPath.TrimEnd('\\')
+
+if (-not (Test-Path $DCSsavedGamesPath -PathType Container)) {
+    Write-Log "Configured path not found: $DCSsavedGamesPath - Attempting auto-detection..." "WARN"
+    
+    # Search on D: and C: drives
+    $detectedPath = $null
+    foreach ($drive in @('D:', 'C:')) {
+        $pathsToTry = @(
+            "$drive\Users\$env:USERNAME\Saved Games\DCS",
+            "$drive\Saved Games\DCS"
+        )
+        
+        foreach ($tryPath in $pathsToTry) {
+            if (Test-Path $tryPath -PathType Container) {
+                $detectedPath = $tryPath
+                Write-Log "Auto-detected DCS location: $detectedPath" "INFO"
+                break
+            }
+        }
+        
+        if ($detectedPath) { break }
+    }
+    
+    if ($detectedPath) {
+        $DCSsavedGamesPath = $detectedPath
+    } else {
+        Write-Log "Could not auto-detect DCS saved games location" "WARN"
+    }
+}
 
 # Normalize to ensure path points to the DCS folder
 # (Removed: rely on user-provided savedGamesPath)
