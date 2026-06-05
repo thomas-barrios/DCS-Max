@@ -1,17 +1,20 @@
 # PC Restore Script
 # Restores files from a specified backup folder (or latest if not specified) to original locations
 # Accepts -BackupFolder param (optional, defaults to latest), restores files using env vars for portability
+# Accepts -RestoreDestination param (optional, overrides default DCS saved games path)
 # Requires admin for some paths (e.g., ProgramData), logs to file/console
 # Optional: -NoPause to skip the pause at end (for automation/UI)
 
 param (
     [Parameter(Mandatory=$false)]
     [string]$BackupFolder,
+    [Parameter(Mandatory=$false)]
+    [string]$RestoreDestination,
     [switch]$NoPause = $false
 )
 
 # Assures administrator privileges
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BackupFolder `"$BackupFolder`" -NoPause:`$$NoPause" -Verb RunAs; exit }
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BackupFolder `"$BackupFolder`" -RestoreDestination `"$RestoreDestination`" -NoPause:`$$NoPause" -Verb RunAs; exit }
 
 # Get script and root directories
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -65,10 +68,23 @@ if ($BackupFolder) {
 # === CONFIGURATION ===
 $RestoreLog = "$env:USERPROFILE\Documents\DCS-Max\Backups\_RestoreLog.txt"
 
-# Discover DCS Saved Games location from config-global.json
+# Discover DCS Saved Games location from config-global.json or use RestoreDestination if provided
 $globalConfigPath = Join-Path $PSScriptRoot "..\config-global.json"
-$SavedGamesPath = if (Test-Path $globalConfigPath) {
-    try {
+if ($RestoreDestination) {
+    # Use provided restore destination
+    if (Test-Path $RestoreDestination -PathType Container) {
+        $SavedGamesPath = (Resolve-Path $RestoreDestination).Path
+    } else {
+        Write-Host ""
+        Write-Host "[RESTORE] DCS Settings Restore" -ForegroundColor Cyan
+        Write-Host "================================================" -ForegroundColor DarkGray
+        Write-Host "[FAIL]   Restore destination folder not found: $RestoreDestination" -ForegroundColor Red
+        Write-Host ""
+        if (-not $NoPause) { pause }
+        exit 1
+    }
+} elseif (Test-Path $globalConfigPath) {
+    $SavedGamesPath = try {
         $globalConfig = Get-Content -Path $globalConfigPath -Raw | ConvertFrom-Json
         if ($globalConfig.paths -and $globalConfig.paths.savedGamesPath) {
             $path = $globalConfig.paths.savedGamesPath
@@ -80,7 +96,7 @@ $SavedGamesPath = if (Test-Path $globalConfigPath) {
         "$env:USERPROFILE\Saved Games"
     }
 } else {
-    "$env:USERPROFILE\Saved Games"
+    $SavedGamesPath = "$env:USERPROFILE\Saved Games"
 }
 
 # Use the savedGamesPath from config-global.json as-is (single source of truth)

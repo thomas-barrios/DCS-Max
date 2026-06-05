@@ -44,6 +44,8 @@ function BackupRestore() {
     registry: true,
     scheduleAtLogon: false
   });
+  
+  const [restoreDestination, setRestoreDestination] = useState('');
 
   useEffect(() => {
     if (outputRef.current) {
@@ -175,6 +177,14 @@ function BackupRestore() {
     loadBackups();
   };
 
+  const browseRestoreDestination = async () => {
+    const result = await window.dcsMax.browseForFolder('Select Restore Destination');
+    if (result.success && result.path) {
+      setRestoreDestination(result.path);
+      setOutput(prev => prev + `Selected restore destination: ${result.path}\n`);
+    }
+  };
+
   const restoreBackup = async (backupName) => {
     if (!confirm(`Are you sure you want to restore from backup: ${backupName}?`)) {
       return;
@@ -192,6 +202,9 @@ function BackupRestore() {
     if (backupName.includes('dcs-settings-backup')) {
       script = '1-Backup-Restore/1.4.2-dcs-restore.ps1';
       args = ['-BackupFolder', `Backups\\${backupName}`, '-NoPause'];
+      if (restoreDestination) {
+        args.push('-RestoreDestination', `"${restoreDestination}"`);
+      }
     } else if (backupName.includes('services-backup')) {
       script = '1-Backup-Restore/1.3.3-services-restore-from-backup.ps1';
       args = ['-BackupFile', backupName, '-NoPause'];
@@ -385,6 +398,41 @@ function BackupRestore() {
                     <strong>Warning:</strong> Restoring will overwrite current settings with backed up values.
                   </div>
                 </div>
+              </div>
+
+              {/* Restore Destination (for DCS Settings only) */}
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-6">
+                <label className="block text-sm font-semibold text-white mb-3">Restore Destination (Optional)</label>
+                <p className="text-xs text-slate-400 mb-2">Specify an alternative folder to restore DCS settings to (leaves default if empty)</p>
+                <p className="text-xs text-slate-500 mb-3 bg-slate-900/50 p-2 rounded border border-slate-600">
+                  <strong>Valid format:</strong> The DCS saved games folder (e.g., <code className="text-blue-300">D:\Saved Games\DCS</code> or <code className="text-blue-300">C:\Users\YourName\Saved Games\DCS.openbeta</code>)
+                </p>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={restoreDestination}
+                    onChange={(e) => setRestoreDestination(e.target.value)}
+                    placeholder="Leave empty to restore to default location"
+                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={browseRestoreDestination}
+                    disabled={executing}
+                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-700 disabled:cursor-not-allowed border border-slate-600 rounded text-white text-sm transition-colors"
+                  >
+                    Browse
+                  </button>
+                </div>
+                {restoreDestination && (
+                  <div className="mt-2">
+                    <div className="text-xs text-blue-400 mb-1">Destination: {restoreDestination}</div>
+                    {restoreDestination.toLowerCase().includes('saved games') && restoreDestination.toLowerCase().includes('dcs') ? (
+                      <div className="text-xs text-green-400">✓ Valid DCS destination format</div>
+                    ) : (
+                      <div className="text-xs text-amber-400">⚠ Verify this is a DCS saved games folder</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {backups.length === 0 ? (
