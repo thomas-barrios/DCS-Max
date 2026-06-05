@@ -19,11 +19,12 @@
   "configuration": {
     "paths": {
       "dcsExe": "D:\\Program Files\\Eagle Dynamics\\DCS World\\bin\\DCS.exe",
-      "savedGamesPath": "%USERPROFILE%\\Saved Games\\DCS",
+      "savedGamesPath": "D:\\Users\\Wolf\\Saved Games\\DCS",
       "capframex": "C:\\Program Files (x86)\\CapFrameX\\CapFrameX.exe",
       "autohotkey": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
       "notepadpp": "C:\\Program Files\\Notepad++\\notepad++.exe"
     },
-    "mission": "Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz"
+    "mission": "Su25-caucasus-ordzhonikidze-04air-98ground-cavok-sp-noserver-25min.miz",
+    "numberOfRuns": 3
   }
 }

@@ -31,9 +31,14 @@ if (Test-Path $configPath) {
 # Helper function to check if optimization is enabled
 function Test-OptEnabled {
     param([string]$Id)
-    if ($optimizationConfig.Count -eq 0) { return $true }
+    if ($optimizationConfig.PSObject.Properties.Name.Count -eq 0) { return $true }
     if (-not $optimizationConfig.PSObject.Properties.Name.Contains($Id)) { return $true }
-    return $optimizationConfig[$Id]
+    # Handle both boolean and object values (S046 is an object with 'enabled' property)
+    $value = $optimizationConfig.PSObject.Properties[$Id].Value
+    if ($value -is [PSCustomObject] -and $value.PSObject.Properties['enabled']) {
+        return [bool]$value.enabled
+    }
+    return [bool]$value
 }
 
 # List of all tasks to disable with IDs for config-based filtering

@@ -23,22 +23,33 @@ $rootDirectory = Split-Path -Parent $scriptDir
 
 # Load config from config-optimizations.json
 $configPath = Join-Path $rootDirectory "config-optimizations.json"
-$optimizationConfig = @{}
+$optimizationConfig = $null
 if (Test-Path $configPath) {
     try {
         $configData = Get-Content -Path $configPath -Raw | ConvertFrom-Json
         $optimizationConfig = $configData.serviceOptimizations
     } catch {
         Write-Host "Warning: Failed to load config-optimizations.json" -ForegroundColor Yellow
+        $optimizationConfig = $null
     }
+}
+
+# Default to empty object if config not loaded (allows all optimizations)
+if ($null -eq $optimizationConfig) {
+    $optimizationConfig = @{}
 }
 
 # Helper function to check if optimization is enabled
 function Test-OptEnabled {
     param([string]$Id)
-    if ($optimizationConfig.Count -eq 0) { return $true }
+    if ($optimizationConfig.PSObject.Properties.Name.Count -eq 0) { return $true }
     if (-not $optimizationConfig.PSObject.Properties.Name.Contains($Id)) { return $true }
-    return $optimizationConfig[$Id]
+    # Handle both boolean and object values (S046 is an object with 'enabled' property)
+    $value = $optimizationConfig.PSObject.Properties[$Id].Value
+    if ($value -is [PSCustomObject] -and $value.PSObject.Properties['enabled']) {
+        return [bool]$value.enabled
+    }
+    return [bool]$value
 }
 
 $servicesToModify = @(
@@ -161,6 +172,7 @@ if (-not (Test-Path $backupDir)) {
 # Header
 Write-Host ""
 Write-Host "Starting optimization..." -ForegroundColor Cyan
+Write-Host "[CONFIG] Config Path: $configPath" -ForegroundColor Gray
 Write-Host ""
 Write-Host "[OPTIMIZE] DCS-Max: Windows Services Optimization" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor DarkGray
